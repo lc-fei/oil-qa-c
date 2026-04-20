@@ -1,0 +1,6 @@
+[net]
+# 统一使用 sparse 索引，减少 crates.io 拉取体积并降低 wasm 首次构建成本。
+git-fetch-with-cli = true
+
+[registries.crates-io]
+protocol = "sparse"

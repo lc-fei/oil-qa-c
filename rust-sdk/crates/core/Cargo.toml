@@ -1,0 +1,6 @@
+[package]
+name = "oil-qa-core"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]

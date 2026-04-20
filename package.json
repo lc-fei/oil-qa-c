@@ -1,0 +1,19 @@
+{
+  "name": "oil-qa-c",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "dev": "turbo run dev --filter=@oil-qa-c/web",
+    "dev:web": "pnpm --filter @oil-qa-c/web dev",
+    "build": "turbo run build",
+    "build:wasm": "bash ./scripts/build-wasm.sh",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "turbo": "^2.5.3",
+    "typescript": "^5.8.3"
+  }
+}

@@ -1,0 +1,7 @@
+[package]
+name = "oil-qa-cache"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+oil-qa-core = { path = "../core" }

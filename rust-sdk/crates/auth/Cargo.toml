@@ -1,0 +1,7 @@
+[package]
+name = "oil-qa-auth"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+oil-qa-core = { path = "../core" }

@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "allowJs": false,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@oil-qa-c/shared": ["packages/shared/src"],
+      "@oil-qa-c/api": ["packages/api/src"],
+      "@oil-qa-c/store": ["packages/store/src"],
+      "@oil-qa-c/business": ["packages/business/src"],
+      "@oil-qa-c/ui": ["packages/ui/src"],
+      "@oil-qa-c/wasm-sdk": ["packages/wasm-sdk/src"]
+    }
+  }
+}
