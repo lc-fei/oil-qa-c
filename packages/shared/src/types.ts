@@ -60,6 +60,36 @@ export interface QaMessage {
   feedbackType: 'LIKE' | 'DISLIKE' | null;
 }
 
+export interface SendQuestionPayload {
+  sessionId?: number;
+  question: string;
+  contextMode?: 'ON' | 'OFF';
+  answerMode?: 'GRAPH_ENHANCED' | 'LLM_ONLY';
+}
+
+export interface ChatTimings {
+  totalDurationMs: number;
+  nlpDurationMs: number;
+  graphDurationMs: number;
+  promptDurationMs: number;
+  aiDurationMs: number;
+}
+
+export interface EvidenceSummary {
+  graphHit: boolean;
+  entityCount: number;
+  relationCount: number;
+  confidence: number;
+}
+
+export interface SendQuestionResponse extends QaMessage {
+  sessionId: number;
+  sessionNo: string;
+  followUps: string[];
+  timings: ChatTimings;
+  evidenceSummary: EvidenceSummary;
+}
+
 export interface MessageChunk {
   messageId: number;
   requestNo: string;
@@ -73,7 +103,7 @@ export interface QaSessionSummary {
   sessionId: number;
   sessionNo: string;
   title: string;
-  lastQuestion: string;
+  lastQuestion: string | null;
   messageCount: number;
   updatedAt: string;
   isFavorite: boolean;
@@ -136,12 +166,32 @@ export interface EvidenceSource {
   content: string;
 }
 
+export interface EvidenceGraphNode {
+  nodeId: string;
+  nodeName: string;
+  nodeType: string;
+}
+
+export interface EvidenceGraphEdge {
+  sourceId: string;
+  targetId: string;
+  relationType: string;
+}
+
+export interface EvidenceGraphData {
+  center?: EvidenceEntity | null;
+  nodes: EvidenceGraphNode[];
+  edges: EvidenceGraphEdge[];
+}
+
 export interface EvidenceDetail {
   messageId: number;
   requestNo: string;
   entities: EvidenceEntity[];
   relations: EvidenceRelation[];
+  graphData?: EvidenceGraphData;
   sources: EvidenceSource[];
+  timings?: ChatTimings;
   confidence: number;
 }
 

@@ -3,11 +3,16 @@ import { getRuntimeEnv } from '@oil-qa-c/shared';
 import { initWasmSdk } from '@oil-qa-c/wasm-sdk';
 
 let initialized = false;
+let initializationTask: Promise<void> | null = null;
 
 // 只执行一次全局初始化，避免 React 严格模式下重复触发副作用。
 export function initializeWebApp() {
   if (initialized) {
-    return;
+    return initializationTask ?? Promise.resolve();
+  }
+
+  if (initializationTask) {
+    return initializationTask;
   }
 
   const runtime = getRuntimeEnv();
@@ -17,11 +22,13 @@ export function initializeWebApp() {
     baseURL: import.meta.env.VITE_API_BASE_URL ?? '',
   });
 
-  // wasm 当前仍是占位能力，这里先走一次统一初始化入口，后续可直接替换实现。
-  void initWasmSdk({
+  // 先完成 wasm SDK 初始化，再进入后续的认证恢复和页面渲染流程。
+  initializationTask = initWasmSdk({
     runtime,
     source: 'web-bootstrap',
+  }).then(() => {
+    initialized = true;
   });
 
-  initialized = true;
+  return initializationTask;
 }

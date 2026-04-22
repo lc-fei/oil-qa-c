@@ -5,9 +5,6 @@ import { authService } from '@oil-qa-c/business';
 import { useAppStore } from '@oil-qa-c/store';
 import { initializeWebApp } from '../bootstrap/initializeWebApp';
 
-// 统一承载应用级初始化，避免页面层直接感知底层能力。
-initializeWebApp();
-
 export function AppProviders({ children }: PropsWithChildren) {
   const status = useAppStore((state) => state.status);
   const setStatus = useAppStore((state) => state.setStatus);
@@ -19,6 +16,8 @@ export function AppProviders({ children }: PropsWithChildren) {
       setStatus('bootstrapping');
 
       try {
+        // 启动时先完成 Web 端 transport / storage / wasm 初始化，再恢复登录态。
+        await initializeWebApp();
         await authService.restoreSession();
 
         if (!cancelled) {

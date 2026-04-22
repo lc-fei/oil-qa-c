@@ -27,6 +27,10 @@ export function configureApiRuntime(options: Pick<ApiClientOptions, 'baseURL'>) 
   apiRuntimeConfig.baseURL = options.baseURL ?? '';
 }
 
+export function getApiRuntimeBaseUrl() {
+  return apiRuntimeConfig.baseURL;
+}
+
 function buildUrl(baseURL: string, url: string) {
   if (!baseURL) {
     return url;

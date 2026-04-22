@@ -5,3 +5,4 @@ export * from './modules/qaChatApi';
 export * from './modules/favoriteApi';
 export * from './modules/feedbackApi';
 export * from './modules/recommendationApi';
+export * from './sdkTransport';
