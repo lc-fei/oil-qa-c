@@ -5,3 +5,7 @@ version.workspace = true
 
 [dependencies]
 oil-qa-core = { path = "../core" }
+oil-qa-platform = { path = "../platform" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+js-sys = "0.3"

@@ -1,374 +1,251 @@
-use serde::{Deserialize, Serialize};
+use oil_qa_auth as auth;
+use oil_qa_platform as platform;
+use oil_qa_qa as qa;
 use serde_wasm_bindgen::{from_value, to_value};
-use wasm_bindgen::prelude::*;
+use wasm_bindgen::{JsValue, prelude::*};
 
-/// 统一消息生命周期状态，保持和前端领域状态枚举一致。
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-enum MessageLifecycleStatus {
-    Idle,
-    Streaming,
-    Success,
-    Failed,
-    Interrupted,
+#[wasm_bindgen]
+pub fn register_transport(handler: js_sys::Function) {
+    platform::register_transport(handler);
 }
 
-/// 统一领域事件结构，保证不同客户端消费的是相同语义。
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct DomainEvent {
-    #[serde(rename = "type")]
-    event_type: String,
-    occurred_at: String,
-    payload: serde_json::Value,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CurrentUser {
-    user_id: u64,
-    username: String,
-    account: String,
-    nickname: Option<String>,
-    roles: Vec<String>,
-    status: i32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct AuthDomainState {
-    token: Option<String>,
-    current_user: Option<CurrentUser>,
-    status: String,
-    last_event: Option<DomainEvent>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct QaMessage {
-    message_id: u64,
-    message_no: String,
-    request_no: String,
-    question: String,
-    answer: String,
-    answer_summary: String,
-    status: String,
-    created_at: String,
-    finished_at: Option<String>,
-    favorite: bool,
-    feedback_type: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct MessageChunk {
-    message_id: u64,
-    request_no: String,
-    delta: String,
-    done: bool,
-    sequence: u32,
-    error_message: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct QaSessionSummary {
-    session_id: u64,
-    session_no: String,
-    title: String,
-    last_question: String,
-    message_count: usize,
-    updated_at: String,
-    is_favorite: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct QaSessionDetail {
-    session_id: u64,
-    session_no: String,
-    title: String,
-    messages: Vec<QaMessage>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SessionDomainState {
-    current_session_id: Option<u64>,
-    ordered_session_ids: Vec<u64>,
-    empty_session: bool,
-    last_event: Option<DomainEvent>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ChatDomainState {
-    active_message_id: Option<u64>,
-    status: MessageLifecycleStatus,
-    message_ids: Vec<u64>,
-    stream_buffer: std::collections::BTreeMap<u64, String>,
-    last_event: Option<DomainEvent>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct MessageChunkApplyResult {
-    next_state: ChatDomainState,
-    next_answer: String,
-}
-
-fn build_event(event_type: &str, payload: serde_json::Value) -> DomainEvent {
-    DomainEvent {
-        event_type: event_type.to_string(),
-        occurred_at: js_sys::Date::new_0().to_iso_string().into(),
-        payload,
-    }
+#[wasm_bindgen]
+pub fn register_storage(handler: js_sys::Function) {
+    platform::register_storage(handler);
 }
 
 fn js_error(message: impl Into<String>) -> JsValue {
     JsValue::from_str(&message.into())
 }
 
-/// Web 端初始化入口，用于确认真实 wasm 产物已经被前端加载。
+/// bindings 层只负责单一入口和参数编解码，不承载网络与领域实现。
 #[wasm_bindgen]
-pub fn sdk_status() -> String {
-    oil_qa_core::workspace_status().to_string()
-}
-
-/// 会话标题生成真正由 Rust 输出，前端不再保留同名 TS 规则实现。
-#[wasm_bindgen]
-pub fn generate_session_title(question: &str) -> String {
-    let trimmed = question.trim();
-
-    if trimmed.is_empty() {
-        "新对话".to_string()
-    } else {
-        trimmed.chars().take(20).collect()
+pub async fn sdk_invoke(method: String, payload: JsValue) -> Result<JsValue, JsValue> {
+    match method.as_str() {
+        "system.status" => to_value(&serde_json::json!({
+            "sdkStatus": oil_qa_core::workspace_status(),
+            "authStatus": auth::module_status(),
+            "qaStatus": qa::module_status(),
+            "platformStatus": platform::module_status(),
+        }))
+        .map_err(|error| js_error(format!("状态序列化失败: {error}"))),
+        "auth.login" => {
+            let payload: auth::LoginRequest =
+                from_value(payload).map_err(|error| js_error(format!("authLoginPayload 解析失败: {error}")))?;
+            let state = auth::login(payload)
+                .await
+                .map_err(|error| js_error(format!("auth.login 调用失败: {}", error.message)))?;
+            to_value(&state).map_err(|error| js_error(format!("登录结果序列化失败: {error}")))
+        }
+        "auth.restore_session" => {
+            let state = auth::restore_session()
+                .await
+                .map_err(|error| js_error(format!("auth.restore_session 调用失败: {}", error.message)))?;
+            to_value(&state).map_err(|error| js_error(format!("恢复登录结果序列化失败: {error}")))
+        }
+        "auth.logout" => {
+            let state = auth::logout()
+                .await
+                .map_err(|error| js_error(format!("auth.logout 调用失败: {}", error.message)))?;
+            to_value(&state).map_err(|error| js_error(format!("退出登录结果序列化失败: {error}")))
+        }
+        "auth.state.get" => to_value(&auth::get_auth_state())
+            .map_err(|error| js_error(format!("认证快照序列化失败: {error}"))),
+        "auth.create_authenticated_state" => {
+            let payload: AuthCreateAuthenticatedPayload =
+                from_value(payload).map_err(|error| js_error(format!("createAuthenticatedPayload 解析失败: {error}")))?;
+            to_value(&auth::create_authenticated_state(payload.token, payload.current_user))
+                .map_err(|error| js_error(format!("认证状态序列化失败: {error}")))
+        }
+        "auth.create_anonymous_state" => to_value(&auth::create_anonymous_state())
+            .map_err(|error| js_error(format!("匿名认证状态序列化失败: {error}"))),
+        "auth.create_expired_state" => to_value(&auth::create_expired_state())
+            .map_err(|error| js_error(format!("过期认证状态序列化失败: {error}"))),
+        "session.generate_title" => {
+            let payload: SessionGenerateTitlePayload =
+                from_value(payload).map_err(|error| js_error(format!("generateTitlePayload 解析失败: {error}")))?;
+            to_value(&serde_json::json!({
+                "title": qa::generate_session_title(&payload.question),
+            }))
+            .map_err(|error| js_error(format!("标题结果序列化失败: {error}")))
+        }
+        "session.bootstrap" => {
+            let payload: SessionBootstrapPayload =
+                from_value(payload).map_err(|error| js_error(format!("sessionBootstrapPayload 解析失败: {error}")))?;
+            let result = qa::bootstrap_sessions(qa::SessionListQuery {
+                keyword: payload.keyword,
+                page_num: payload.page_num,
+                page_size: payload.page_size,
+            })
+            .await
+            .map_err(|error| js_error(format!("session.bootstrap 调用失败: {}", error.message)))?;
+            to_value(&result).map_err(|error| js_error(format!("会话初始化结果序列化失败: {error}")))
+        }
+        "session.select" => {
+            let payload: SessionSelectPayload =
+                from_value(payload).map_err(|error| js_error(format!("sessionSelectPayload 解析失败: {error}")))?;
+            let result = qa::select_session(payload.session_id)
+                .await
+                .map_err(|error| js_error(format!("session.select 调用失败: {}", error.message)))?;
+            to_value(&result).map_err(|error| js_error(format!("会话切换结果序列化失败: {error}")))
+        }
+        "session.create" => {
+            let payload: SessionCreatePayload =
+                from_value(payload).map_err(|error| js_error(format!("sessionCreatePayload 解析失败: {error}")))?;
+            let result = qa::create_session(qa::CreateSessionPayload { title: payload.title })
+                .await
+                .map_err(|error| js_error(format!("session.create 调用失败: {}", error.message)))?;
+            to_value(&result).map_err(|error| js_error(format!("会话创建结果序列化失败: {error}")))
+        }
+        "session.rename" => {
+            let payload: SessionRenamePayload =
+                from_value(payload).map_err(|error| js_error(format!("sessionRenamePayload 解析失败: {error}")))?;
+            let result = qa::rename_session(qa::RenameSessionPayload {
+                session_id: payload.session_id,
+                title: payload.title,
+            })
+            .await
+            .map_err(|error| js_error(format!("session.rename 调用失败: {}", error.message)))?;
+            to_value(&result).map_err(|error| js_error(format!("会话重命名结果序列化失败: {error}")))
+        }
+        "session.delete" => {
+            let payload: SessionDeletePayload =
+                from_value(payload).map_err(|error| js_error(format!("sessionDeletePayload 解析失败: {error}")))?;
+            let result = qa::delete_session(payload.session_id)
+                .await
+                .map_err(|error| js_error(format!("session.delete 调用失败: {}", error.message)))?;
+            to_value(&result).map_err(|error| js_error(format!("会话删除结果序列化失败: {error}")))
+        }
+        "chat.send" => {
+            let payload: qa::SendQuestionPayload =
+                from_value(payload).map_err(|error| js_error(format!("chatSendPayload 解析失败: {error}")))?;
+            let result = qa::send_question(payload)
+                .await
+                .map_err(|error| js_error(format!("chat.send 调用失败: {}", error.message)))?;
+            to_value(&result).map_err(|error| js_error(format!("问答结果序列化失败: {error}")))
+        }
+        "chat.evidence" => {
+            let payload: ChatEvidencePayload =
+                from_value(payload).map_err(|error| js_error(format!("chatEvidencePayload 解析失败: {error}")))?;
+            let result = qa::get_evidence(payload.message_id)
+                .await
+                .map_err(|error| js_error(format!("chat.evidence 调用失败: {}", error.message)))?;
+            to_value(&result).map_err(|error| js_error(format!("依据结果序列化失败: {error}")))
+        }
+        "session.snapshot.get" => to_value(&qa::get_session_snapshot())
+            .map_err(|error| js_error(format!("会话快照序列化失败: {error}"))),
+        "session.state.create" => {
+            let payload: SessionStatePayload =
+                from_value(payload).map_err(|error| js_error(format!("sessionStatePayload 解析失败: {error}")))?;
+            to_value(&qa::create_session_domain_state(
+                &payload.sessions,
+                payload.current_session_id,
+                "SessionSwitched",
+            ))
+            .map_err(|error| js_error(format!("会话状态序列化失败: {error}")))
+        }
+        "chat.state.create" => {
+            let payload: ChatStatePayload =
+                from_value(payload).map_err(|error| js_error(format!("chatStatePayload 解析失败: {error}")))?;
+            to_value(&qa::create_chat_domain_state(&payload.messages, "MessageCompleted"))
+                .map_err(|error| js_error(format!("消息状态序列化失败: {error}")))
+        }
+        "chat.chunk.apply" => {
+            let payload: ApplyMessageChunkPayload =
+                from_value(payload).map_err(|error| js_error(format!("messageChunkPayload 解析失败: {error}")))?;
+            to_value(&qa::apply_message_chunk(&payload.state, &payload.chunk))
+                .map_err(|error| js_error(format!("chunk 应用结果序列化失败: {error}")))
+        }
+        "session.state.sync" => {
+            let payload: SyncSessionStatePayload =
+                from_value(payload).map_err(|error| js_error(format!("syncSessionPayload 解析失败: {error}")))?;
+            to_value(&qa::sync_domain_states_from_session(&payload.detail))
+                .map_err(|error| js_error(format!("session 同步结果序列化失败: {error}")))
+        }
+        "recommendation.list" => {
+            let result = qa::list_recommendations()
+                .await
+                .map_err(|error| js_error(format!("recommendation.list 调用失败: {}", error.message)))?;
+            to_value(&result).map_err(|error| js_error(format!("推荐问题结果序列化失败: {error}")))
+        }
+        _ => Err(js_error(format!("未注册的 SDK 方法: {method}"))),
     }
 }
 
-/// 认证领域状态统一由 Rust 生成，客户端只负责请求传输和持有快照。
-#[wasm_bindgen]
-pub fn create_authenticated_state(token: String, current_user: JsValue) -> Result<JsValue, JsValue> {
-    let current_user: CurrentUser =
-        from_value(current_user).map_err(|error| js_error(format!("currentUser 解析失败: {error}")))?;
-
-    to_value(&AuthDomainState {
-        token: Some(token),
-        current_user: Some(current_user.clone()),
-        status: "AUTHENTICATED".to_string(),
-        last_event: Some(build_event(
-            "AuthLoggedIn",
-            serde_json::json!({
-                "userId": current_user.user_id,
-                "username": current_user.username,
-            }),
-        )),
-    })
-    .map_err(|error| js_error(format!("认证状态序列化失败: {error}")))
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AuthCreateAuthenticatedPayload {
+    token: String,
+    current_user: auth::CurrentUser,
 }
 
-#[wasm_bindgen]
-pub fn create_anonymous_auth_state() -> Result<JsValue, JsValue> {
-    to_value(&AuthDomainState {
-        token: None,
-        current_user: None,
-        status: "ANONYMOUS".to_string(),
-        last_event: Some(build_event(
-            "AuthLoggedOut",
-            serde_json::json!({
-                "reason": "manual-or-empty-token",
-            }),
-        )),
-    })
-    .map_err(|error| js_error(format!("匿名认证状态序列化失败: {error}")))
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SessionGenerateTitlePayload {
+    question: String,
 }
 
-#[wasm_bindgen]
-pub fn create_expired_auth_state() -> Result<JsValue, JsValue> {
-    to_value(&AuthDomainState {
-        token: None,
-        current_user: None,
-        status: "EXPIRED".to_string(),
-        last_event: Some(build_event(
-            "AuthExpired",
-            serde_json::json!({
-                "reason": "token-invalid-or-me-failed",
-            }),
-        )),
-    })
-    .map_err(|error| js_error(format!("过期认证状态序列化失败: {error}")))
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SessionBootstrapPayload {
+    keyword: Option<String>,
+    page_num: Option<u32>,
+    page_size: Option<u32>,
 }
 
-#[wasm_bindgen]
-pub fn create_session_domain_state(sessions: JsValue, current_session_id: JsValue) -> Result<JsValue, JsValue> {
-    let sessions: Vec<QaSessionSummary> =
-        from_value(sessions).map_err(|error| js_error(format!("sessions 解析失败: {error}")))?;
-    let current_session_id = if current_session_id.is_null() || current_session_id.is_undefined() {
-        None
-    } else {
-        current_session_id.as_f64().map(|value| value as u64)
-    };
-
-    to_value(&SessionDomainState {
-        current_session_id,
-        ordered_session_ids: sessions.iter().map(|session| session.session_id).collect(),
-        empty_session: sessions.is_empty(),
-        last_event: Some(build_event(
-            "SessionSwitched",
-            serde_json::json!({
-                "currentSessionId": current_session_id,
-                "sessionCount": sessions.len(),
-            }),
-        )),
-    })
-    .map_err(|error| js_error(format!("会话领域状态序列化失败: {error}")))
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SessionSelectPayload {
+    session_id: u64,
 }
 
-#[wasm_bindgen]
-pub fn create_chat_domain_state(messages: JsValue) -> Result<JsValue, JsValue> {
-    let messages: Vec<QaMessage> =
-        from_value(messages).map_err(|error| js_error(format!("messages 解析失败: {error}")))?;
-    let active_message = messages.iter().rev().find(|message| message.status == "PROCESSING");
-
-    let stream_buffer = messages
-        .iter()
-        .map(|message| (message.message_id, message.answer.clone()))
-        .collect::<std::collections::BTreeMap<_, _>>();
-
-    to_value(&ChatDomainState {
-        active_message_id: active_message.map(|message| message.message_id),
-        status: if active_message.is_some() {
-            MessageLifecycleStatus::Streaming
-        } else {
-            MessageLifecycleStatus::Idle
-        },
-        message_ids: messages.iter().map(|message| message.message_id).collect(),
-        stream_buffer,
-        last_event: Some(build_event(
-            if active_message.is_some() {
-                "MessageSubmitted"
-            } else {
-                "MessageCompleted"
-            },
-            serde_json::json!({
-                "activeMessageId": active_message.map(|message| message.message_id),
-                "messageCount": messages.len(),
-            }),
-        )),
-    })
-    .map_err(|error| js_error(format!("消息领域状态序列化失败: {error}")))
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SessionCreatePayload {
+    title: Option<String>,
 }
 
-#[wasm_bindgen]
-pub fn apply_message_chunk(state: JsValue, chunk: JsValue) -> Result<JsValue, JsValue> {
-    let state: ChatDomainState =
-        from_value(state).map_err(|error| js_error(format!("chatState 解析失败: {error}")))?;
-    let chunk: MessageChunk =
-        from_value(chunk).map_err(|error| js_error(format!("messageChunk 解析失败: {error}")))?;
-
-    let previous_text = state
-        .stream_buffer
-        .get(&chunk.message_id)
-        .cloned()
-        .unwrap_or_default();
-    let next_answer = format!("{previous_text}{}", chunk.delta);
-    let next_status = if chunk.error_message.is_some() {
-        MessageLifecycleStatus::Failed
-    } else if chunk.done {
-        MessageLifecycleStatus::Success
-    } else {
-        MessageLifecycleStatus::Streaming
-    };
-
-    let mut next_message_ids = state.message_ids.clone();
-    if !next_message_ids.contains(&chunk.message_id) {
-        next_message_ids.push(chunk.message_id);
-    }
-
-    let mut next_stream_buffer = state.stream_buffer.clone();
-    next_stream_buffer.insert(chunk.message_id, next_answer.clone());
-
-    to_value(&MessageChunkApplyResult {
-        next_state: ChatDomainState {
-          active_message_id: if chunk.done { None } else { Some(chunk.message_id) },
-          status: next_status,
-          message_ids: next_message_ids,
-          stream_buffer: next_stream_buffer,
-          last_event: Some(build_event(
-              if chunk.error_message.is_some() {
-                  "MessageFailed"
-              } else if chunk.done {
-                  "MessageCompleted"
-              } else {
-                  "MessageChunkReceived"
-              },
-              serde_json::json!({
-                  "messageId": chunk.message_id,
-                  "requestNo": chunk.request_no,
-                  "sequence": chunk.sequence,
-              }),
-          )),
-        },
-        next_answer,
-    })
-    .map_err(|error| js_error(format!("chunk 应用结果序列化失败: {error}")))
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SessionRenamePayload {
+    session_id: u64,
+    title: String,
 }
 
-#[wasm_bindgen]
-pub fn sync_domain_states_from_session(detail: JsValue) -> Result<JsValue, JsValue> {
-    let detail: QaSessionDetail =
-        from_value(detail).map_err(|error| js_error(format!("sessionDetail 解析失败: {error}")))?;
-    let last_message = detail.messages.last();
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SessionDeletePayload {
+    session_id: u64,
+}
 
-    let session_state = SessionDomainState {
-        current_session_id: Some(detail.session_id),
-        ordered_session_ids: vec![detail.session_id],
-        empty_session: detail.messages.is_empty(),
-        last_event: Some(build_event(
-            "SessionSwitched",
-            serde_json::json!({
-                "currentSessionId": detail.session_id,
-                "sessionCount": 1,
-            }),
-        )),
-    };
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ChatEvidencePayload {
+    message_id: u64,
+}
 
-    let active_message = detail
-        .messages
-        .iter()
-        .rev()
-        .find(|message| message.status == "PROCESSING");
-    let chat_state = ChatDomainState {
-        active_message_id: active_message.map(|message| message.message_id),
-        status: if active_message.is_some() {
-            MessageLifecycleStatus::Streaming
-        } else {
-            MessageLifecycleStatus::Idle
-        },
-        message_ids: detail.messages.iter().map(|message| message.message_id).collect(),
-        stream_buffer: detail
-            .messages
-            .iter()
-            .map(|message| (message.message_id, message.answer.clone()))
-            .collect(),
-        last_event: Some(build_event(
-            if active_message.is_some() {
-                "MessageSubmitted"
-            } else {
-                "MessageCompleted"
-            },
-            serde_json::json!({
-                "activeMessageId": active_message.map(|message| message.message_id),
-                "messageCount": detail.messages.len(),
-                "lastQuestion": last_message.map(|message| message.question.clone()).unwrap_or_default(),
-            }),
-        )),
-    };
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SessionStatePayload {
+    sessions: Vec<qa::QaSessionSummary>,
+    current_session_id: Option<u64>,
+}
 
-    to_value(&serde_json::json!({
-        "sessionState": session_state,
-        "chatState": chat_state,
-    }))
-    .map_err(|error| js_error(format!("session 同步结果序列化失败: {error}")))
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ChatStatePayload {
+    messages: Vec<qa::QaMessage>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ApplyMessageChunkPayload {
+    state: qa::ChatDomainState,
+    chunk: qa::MessageChunk,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SyncSessionStatePayload {
+    detail: qa::QaSessionDetail,
 }

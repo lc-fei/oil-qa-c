@@ -12,6 +12,7 @@
     "lint": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@oil-qa-c/api": "workspace:*",
     "@oil-qa-c/shared": "workspace:*"
   }
 }
