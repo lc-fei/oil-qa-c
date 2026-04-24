@@ -1,4 +1,5 @@
 use oil_qa_auth as auth;
+use oil_qa_favorite as favorite;
 use oil_qa_platform as platform;
 use oil_qa_qa as qa;
 use serde_wasm_bindgen::{from_value, to_value};
@@ -26,6 +27,7 @@ pub async fn sdk_invoke(method: String, payload: JsValue) -> Result<JsValue, JsV
             "sdkStatus": oil_qa_core::workspace_status(),
             "authStatus": auth::module_status(),
             "qaStatus": qa::module_status(),
+            "favoriteStatus": favorite::module_status(),
             "platformStatus": platform::module_status(),
         }))
         .map_err(|error| js_error(format!("状态序列化失败: {error}"))),
@@ -168,6 +170,49 @@ pub async fn sdk_invoke(method: String, payload: JsValue) -> Result<JsValue, JsV
                 .map_err(|error| js_error(format!("recommendation.list 调用失败: {}", error.message)))?;
             to_value(&result).map_err(|error| js_error(format!("推荐问题结果序列化失败: {error}")))
         }
+        "favorite.list" => {
+            let payload: FavoriteListPayload =
+                from_value(payload).map_err(|error| js_error(format!("favoriteListPayload 解析失败: {error}")))?;
+            let result = favorite::list_favorites(favorite::FavoriteQuery {
+                keyword: payload.keyword,
+                favorite_type: payload.favorite_type,
+                page_num: payload.page_num,
+                page_size: payload.page_size,
+            })
+            .await
+            .map_err(|error| js_error(format!("favorite.list 调用失败: {}", error.message)))?;
+            to_value(&result).map_err(|error| js_error(format!("收藏列表结果序列化失败: {error}")))
+        }
+        "favorite.add" => {
+            let payload: FavoriteMessagePayload =
+                from_value(payload).map_err(|error| js_error(format!("favoriteMessagePayload 解析失败: {error}")))?;
+            let result = favorite::favorite_message(payload.message_id)
+                .await
+                .map_err(|error| js_error(format!("favorite.add 调用失败: {}", error.message)))?;
+            to_value(&result).map_err(|error| js_error(format!("收藏结果序列化失败: {error}")))
+        }
+        "favorite.remove" => {
+            let payload: FavoriteRemovePayload =
+                from_value(payload).map_err(|error| js_error(format!("favoriteRemovePayload 解析失败: {error}")))?;
+            let result = favorite::cancel_favorite(payload.favorite_id)
+                .await
+                .map_err(|error| js_error(format!("favorite.remove 调用失败: {}", error.message)))?;
+            to_value(&result).map_err(|error| js_error(format!("取消收藏结果序列化失败: {error}")))
+        }
+        "feedback.submit" => {
+            let payload: FeedbackSubmitPayload =
+                from_value(payload).map_err(|error| js_error(format!("feedbackSubmitPayload 解析失败: {error}")))?;
+            let result = favorite::submit_feedback(
+                payload.message_id,
+                favorite::FeedbackPayload {
+                    feedback_type: payload.feedback_type,
+                    feedback_reason: payload.feedback_reason,
+                },
+            )
+            .await
+            .map_err(|error| js_error(format!("feedback.submit 调用失败: {}", error.message)))?;
+            to_value(&result).map_err(|error| js_error(format!("反馈结果序列化失败: {error}")))
+        }
         _ => Err(js_error(format!("未注册的 SDK 方法: {method}"))),
     }
 }
@@ -222,6 +267,35 @@ struct SessionDeletePayload {
 #[serde(rename_all = "camelCase")]
 struct ChatEvidencePayload {
     message_id: u64,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FavoriteListPayload {
+    keyword: Option<String>,
+    favorite_type: Option<String>,
+    page_num: Option<u32>,
+    page_size: Option<u32>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FavoriteMessagePayload {
+    message_id: u64,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FavoriteRemovePayload {
+    favorite_id: u64,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FeedbackSubmitPayload {
+    message_id: u64,
+    feedback_type: String,
+    feedback_reason: Option<String>,
 }
 
 #[derive(serde::Deserialize)]

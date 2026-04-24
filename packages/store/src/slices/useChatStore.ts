@@ -7,6 +7,7 @@ interface ChatState {
   domainState: ChatDomainState;
   setMessages: (messages: QaMessage[]) => void;
   appendMessage: (message: QaMessage) => void;
+  updateMessageFavorite: (messageId: number, favorite: boolean) => void;
   setSending: (value: boolean) => void;
   setDomainState: (state: ChatDomainState) => void;
 }
@@ -27,6 +28,18 @@ export const useChatStore = create<ChatState>((set) => ({
     // 消息流按时间追加，后续流式输出时可在这里扩展增量更新逻辑。
     set((state) => ({
       messages: [...state.messages, message],
+    }));
+  },
+  updateMessageFavorite(messageId, favorite) {
+    set((state) => ({
+      messages: state.messages.map((message) =>
+        message.messageId === messageId
+          ? {
+              ...message,
+              favorite,
+            }
+          : message,
+      ),
     }));
   },
   setSending(isSending) {

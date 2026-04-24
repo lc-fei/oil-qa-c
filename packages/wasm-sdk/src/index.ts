@@ -3,7 +3,10 @@ import type {
   ChatDomainState,
   CurrentUser,
   EvidenceDetail,
+  FavoriteItem,
+  FeedbackType,
   MessageChunk,
+  PaginatedResult,
   QaMessage,
   QaSessionDetail,
   QaSessionSummary,
@@ -213,4 +216,29 @@ export async function sendQuestionWithSdk(payload: SendQuestionPayload) {
 
 export async function getEvidenceWithSdk(messageId: number) {
   return invokeSdk<EvidenceDetail>('chat.evidence', { messageId });
+}
+
+export async function listFavoritesWithSdk(options: {
+  keyword?: string;
+  favoriteType?: 'MESSAGE' | 'SESSION';
+  pageNum?: number;
+  pageSize?: number;
+} = {}) {
+  return invokeSdk<PaginatedResult<FavoriteItem>>('favorite.list', options);
+}
+
+export async function favoriteMessageWithSdk(messageId: number) {
+  return invokeSdk<{ favoriteId: number; messageId: number; favorite: boolean }>('favorite.add', { messageId });
+}
+
+export async function cancelFavoriteWithSdk(favoriteId: number) {
+  return invokeSdk<null>('favorite.remove', { favoriteId });
+}
+
+export async function submitFeedbackWithSdk(messageId: number, feedbackType: FeedbackType, feedbackReason?: string) {
+  return invokeSdk<{ messageId: number; feedbackType: FeedbackType }>('feedback.submit', {
+    messageId,
+    feedbackType,
+    feedbackReason,
+  });
 }

@@ -5,6 +5,8 @@ import { createAuthApi } from './modules/authApi';
 import { createQaSessionApi } from './modules/qaSessionApi';
 import { createRecommendationApi } from './modules/recommendationApi';
 import { createQaChatApi } from './modules/qaChatApi';
+import { createFavoriteApi } from './modules/favoriteApi';
+import { createFeedbackApi } from './modules/feedbackApi';
 
 export interface SdkTransportRequest {
   method: string;
@@ -52,6 +54,8 @@ export function createWebSdkTransport() {
     const sessionApi = createQaSessionApi(client);
     const recommendationApi = createRecommendationApi(client);
     const chatApi = createQaChatApi(client);
+    const favoriteApi = createFavoriteApi(client);
+    const feedbackApi = createFeedbackApi(client);
 
     switch (request.method) {
       case 'auth.login':
@@ -86,6 +90,24 @@ export function createWebSdkTransport() {
       case 'chat.evidence': {
         const payload = normalizedPayload as { messageId: number };
         return chatApi.getEvidence(payload.messageId);
+      }
+      case 'favorite.list':
+        return favoriteApi.list(normalizedPayload as Parameters<typeof favoriteApi.list>[0]);
+      case 'favorite.add': {
+        const payload = normalizedPayload as { messageId: number };
+        return favoriteApi.favoriteMessage(payload.messageId);
+      }
+      case 'favorite.remove': {
+        const payload = normalizedPayload as { favoriteId: number };
+        await favoriteApi.cancelFavorite(payload.favoriteId);
+        return null;
+      }
+      case 'feedback.submit': {
+        const payload = normalizedPayload as { messageId: number; feedbackType: 'LIKE' | 'DISLIKE'; feedbackReason?: string };
+        return feedbackApi.submit(payload.messageId, {
+          feedbackType: payload.feedbackType,
+          feedbackReason: payload.feedbackReason,
+        });
       }
       default:
         throw new Error(`未支持的 SDK transport 方法: ${request.method}`);

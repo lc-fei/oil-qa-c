@@ -89,6 +89,9 @@ name = "oil-qa-favorite"
 version = "0.1.0"
 dependencies = [
  "oil-qa-core",
+ "oil-qa-platform",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -129,6 +132,7 @@ dependencies = [
  "js-sys",
  "oil-qa-auth",
  "oil-qa-core",
+ "oil-qa-favorite",
  "oil-qa-platform",
  "oil-qa-qa",
  "serde",

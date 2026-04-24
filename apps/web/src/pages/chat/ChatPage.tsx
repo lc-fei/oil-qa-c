@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authService, qaChatService, qaSessionService, recommendationService } from '@oil-qa-c/business';
+import { authService, favoriteService, qaChatService, qaSessionService, recommendationService } from '@oil-qa-c/business';
 import { copyToClipboard, type EvidenceDetail, type QaMessage, type QaSessionSummary, type RecommendationItem, routes } from '@oil-qa-c/shared';
 import { createSessionDomainState } from '@oil-qa-c/wasm-sdk';
-import { useAuthStore, useChatStore, useEvidenceStore, useSessionStore } from '@oil-qa-c/store';
+import { useAuthStore, useChatStore, useEvidenceStore, useFavoriteStore, useSessionStore } from '@oil-qa-c/store';
 import './chat.css';
 
 interface SessionGroup {
@@ -100,6 +100,7 @@ export function ChatPage() {
   const isSending = useChatStore((state) => state.isSending);
   const setSending = useChatStore((state) => state.setSending);
   const setChatDomainState = useChatStore((state) => state.setDomainState);
+  const favoriteIdsByMessageId = useFavoriteStore((state) => state.favoriteIdsByMessageId);
   const evidenceOpen = useEvidenceStore((state) => state.panelOpen);
   const currentEvidenceMessageId = useEvidenceStore((state) => state.currentMessageId);
   const evidenceDetail = useEvidenceStore((state) => state.detail);
@@ -115,6 +116,7 @@ export function ChatPage() {
   const [evidenceErrorMessage, setEvidenceErrorMessage] = useState('');
   const [loadingEvidence, setLoadingEvidence] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [favoriteActionMessageId, setFavoriteActionMessageId] = useState<number | null>(null);
 
   const groupedSessions = useMemo(() => groupSessionsByDate(sessions), [sessions]);
   const hasConversation = Boolean(currentSessionId && messages.length);
@@ -282,6 +284,19 @@ export function ChatPage() {
       setSessionErrorMessage(error instanceof Error ? error.message : '问答发送失败');
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleToggleFavorite(message: QaMessage) {
+    setFavoriteActionMessageId(message.messageId);
+
+    try {
+      setSessionErrorMessage('');
+      await favoriteService.toggleMessageFavorite(message.messageId);
+    } catch (error) {
+      setSessionErrorMessage(error instanceof Error ? error.message : '收藏操作失败');
+    } finally {
+      setFavoriteActionMessageId(null);
     }
   }
 
@@ -477,6 +492,20 @@ export function ChatPage() {
                         {message.favorite ? <span className="chat-chip">已收藏</span> : null}
                       </div>
                       <div className="chat-action-row">
+                        <button
+                          type="button"
+                          className="chat-inline-button"
+                          onClick={() => {
+                            void handleToggleFavorite(message);
+                          }}
+                          disabled={favoriteActionMessageId === message.messageId}
+                        >
+                          {favoriteActionMessageId === message.messageId
+                            ? '处理中...'
+                            : message.favorite || favoriteIdsByMessageId[message.messageId]
+                              ? '取消收藏'
+                              : '收藏回答'}
+                        </button>
                         <button
                           type="button"
                           className="chat-inline-button"
