@@ -4,6 +4,7 @@ import { authService, favoriteService, qaChatService, qaSessionService, recommen
 import { copyToClipboard, type EvidenceDetail, type QaMessage, type QaSessionSummary, type RecommendationItem, routes } from '@oil-qa-c/shared';
 import { createSessionDomainState } from '@oil-qa-c/wasm-sdk';
 import { useAuthStore, useChatStore, useEvidenceStore, useFavoriteStore, useSessionStore } from '@oil-qa-c/store';
+import { AnswerRenderer } from '@oil-qa-c/ui';
 import './chat.css';
 
 interface SessionGroup {
@@ -486,7 +487,8 @@ export function ChatPage() {
                     <div className="chat-bubble-avatar is-ai">AI</div>
                     <div className="chat-bubble">
                       <h3>系统回答</h3>
-                      <div>{message.answer}</div>
+                      {/* 主会话回答统一走富文本渲染组件，避免页面自己解析模型返回格式。 */}
+                      <AnswerRenderer content={message.answer} className="chat-answer-renderer" />
                       <div className="chat-chip-row">
                         <span className="chat-chip">{message.answerSummary}</span>
                         {message.favorite ? <span className="chat-chip">已收藏</span> : null}

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Button, Card, Input, List, Space, Typography } from 'antd';
 import { favoriteService } from '@oil-qa-c/business';
 import { useFavoriteStore } from '@oil-qa-c/store';
-import { PageContainer } from '@oil-qa-c/ui';
+import { AnswerRenderer, PageContainer } from '@oil-qa-c/ui';
 
 export function FavoritesPage() {
   const favorites = useFavoriteStore((state) => state.items);
@@ -103,7 +103,8 @@ export function FavoritesPage() {
                   description={
                     <Space direction="vertical" size={4}>
                       <Typography.Text type="secondary">问题：{item.question}</Typography.Text>
-                      <Typography.Text>{item.answerSnippet}</Typography.Text>
+                      {/* 收藏页也复用统一渲染器，保证摘要中的列表/强调格式不被直接打平。 */}
+                      <AnswerRenderer content={item.answerSnippet} compact />
                       <Typography.Text type="secondary">收藏时间：{item.createdAt}</Typography.Text>
                     </Space>
                   }
