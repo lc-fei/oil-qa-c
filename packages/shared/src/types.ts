@@ -82,9 +82,16 @@ export interface EvidenceSummary {
   confidence: number;
 }
 
-export interface SendQuestionResponse extends QaMessage {
+export interface SendQuestionResponse {
   sessionId: number;
   sessionNo: string;
+  messageId: number;
+  messageNo: string;
+  requestNo: string;
+  question: string;
+  answer: string;
+  answerSummary: string;
+  status: 'SUCCESS' | 'FAILED';
   followUps: string[];
   timings: ChatTimings;
   evidenceSummary: EvidenceSummary;
@@ -103,7 +110,7 @@ export interface QaSessionSummary {
   sessionId: number;
   sessionNo: string;
   title: string;
-  lastQuestion: string | null;
+  lastQuestion: string;
   messageCount: number;
   updatedAt: string;
   isFavorite: boolean;
@@ -179,7 +186,7 @@ export interface EvidenceGraphEdge {
 }
 
 export interface EvidenceGraphData {
-  center?: EvidenceEntity | null;
+  center: EvidenceEntity | null;
   nodes: EvidenceGraphNode[];
   edges: EvidenceGraphEdge[];
 }
@@ -189,9 +196,9 @@ export interface EvidenceDetail {
   requestNo: string;
   entities: EvidenceEntity[];
   relations: EvidenceRelation[];
-  graphData?: EvidenceGraphData;
+  graphData: EvidenceGraphData;
   sources: EvidenceSource[];
-  timings?: ChatTimings;
+  timings: ChatTimings;
   confidence: number;
 }
 

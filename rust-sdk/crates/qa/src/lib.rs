@@ -40,7 +40,7 @@ pub struct QaSessionSummary {
     pub session_id: u64,
     pub session_no: String,
     pub title: String,
-    pub last_question: Option<String>,
+    pub last_question: String,
     pub message_count: usize,
     pub updated_at: String,
     pub is_favorite: bool,
@@ -104,10 +104,6 @@ pub struct SendQuestionResponse {
     pub answer_summary: String,
     pub follow_ups: Vec<String>,
     pub status: String,
-    pub created_at: String,
-    pub finished_at: Option<String>,
-    pub favorite: bool,
-    pub feedback_type: Option<String>,
     pub timings: ChatTimings,
     pub evidence_summary: EvidenceSummary,
 }
@@ -286,9 +282,9 @@ pub struct EvidenceDetail {
     pub request_no: String,
     pub entities: Vec<EvidenceEntity>,
     pub relations: Vec<EvidenceRelation>,
-    pub graph_data: Option<EvidenceGraphData>,
+    pub graph_data: EvidenceGraphData,
     pub sources: Vec<EvidenceSource>,
-    pub timings: Option<ChatTimings>,
+    pub timings: ChatTimings,
     pub confidence: f64,
 }
 
@@ -347,7 +343,8 @@ fn create_summary_from_detail(detail: &QaSessionDetail, previous_summary: Option
         title: detail.title.clone(),
         last_question: last_message
             .map(|message| message.question.clone())
-            .or_else(|| previous_summary.and_then(|summary| summary.last_question.clone())),
+            .or_else(|| previous_summary.map(|summary| summary.last_question.clone()))
+            .unwrap_or_default(),
         message_count: detail.messages.len(),
         updated_at: last_message
             .map(|message| message.created_at.clone())
@@ -368,10 +365,11 @@ fn create_message_from_chat_response(response: &SendQuestionResponse) -> QaMessa
         answer: response.answer.clone(),
         answer_summary: response.answer_summary.clone(),
         status: response.status.clone(),
-        created_at: response.created_at.clone(),
-        finished_at: response.finished_at.clone(),
-        favorite: response.favorite,
-        feedback_type: response.feedback_type.clone(),
+        // 发送问题接口按文档不返回消息时间与交互字段，这里由 SDK 统一补齐初始消息快照。
+        created_at: js_sys::Date::new_0().to_iso_string().into(),
+        finished_at: Some(js_sys::Date::new_0().to_iso_string().into()),
+        favorite: false,
+        feedback_type: None,
     }
 }
 
@@ -455,7 +453,11 @@ pub fn sync_domain_states_from_session(detail: &QaSessionDetail) -> SyncedDomain
                 session_id: detail.session_id,
                 session_no: detail.session_no.clone(),
             title: detail.title.clone(),
-            last_question: detail.messages.last().map(|message| message.question.clone()),
+            last_question: detail
+                .messages
+                .last()
+                .map(|message| message.question.clone())
+                .unwrap_or_default(),
             message_count: detail.messages.len(),
                 updated_at: detail
                     .messages
@@ -537,12 +539,21 @@ pub async fn bootstrap_sessions(query: SessionListQuery) -> SdkResult<SessionSdk
         return Ok(set_session_sdk_result(build_sdk_result(Vec::new(), None)));
     }
 
-    let current_detail: QaSessionDetail = invoke_transport(
+    let fallback_result = build_sdk_result(response.list.clone(), None);
+    let current_detail = invoke_transport(
         "session.detail",
         serde_json::json!({ "sessionId": response.list[0].session_id }),
         None,
     )
-    .await?;
+    .await;
+
+    let current_detail: QaSessionDetail = match current_detail {
+        Ok(current_detail) => current_detail,
+        Err(_) => {
+            // 初始化阶段先保证历史会话列表可见，详情失败不应导致整侧边栏空白。
+            return Ok(set_session_sdk_result(fallback_result));
+        }
+    };
     let next_sessions = response
         .list
         .into_iter()
@@ -606,7 +617,7 @@ pub async fn create_session(payload: CreateSessionPayload) -> SdkResult<SessionS
             session_id: created.session_id,
             session_no: created.session_no,
             title: detail.title.clone(),
-            last_question: None,
+            last_question: String::new(),
             message_count: 0,
             updated_at: js_sys::Date::new_0().to_iso_string().into(),
             is_favorite: false,

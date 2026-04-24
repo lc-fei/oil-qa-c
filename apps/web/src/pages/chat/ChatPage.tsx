@@ -78,6 +78,14 @@ function buildUserInitials(name: string) {
     .toUpperCase();
 }
 
+function formatDurationLabel(durationMs: number) {
+  if (durationMs < 1000) {
+    return `${durationMs} ms`;
+  }
+
+  return `${(durationMs / 1000).toFixed(2)} s`;
+}
+
 export function ChatPage() {
   const navigate = useNavigate();
   const dropdownRef = useRef<HTMLDivElement | null>(null);
@@ -105,6 +113,7 @@ export function ChatPage() {
   const [loadingRecommendations, setLoadingRecommendations] = useState(true);
   const [sessionErrorMessage, setSessionErrorMessage] = useState('');
   const [evidenceErrorMessage, setEvidenceErrorMessage] = useState('');
+  const [loadingEvidence, setLoadingEvidence] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const groupedSessions = useMemo(() => groupSessionsByDate(sessions), [sessions]);
@@ -235,10 +244,16 @@ export function ChatPage() {
 
     openEvidencePanel(message.messageId);
     setEvidenceErrorMessage('');
+    setLoadingEvidence(true);
     setEvidenceDetail(null);
-    void qaChatService.getEvidence(message.messageId).catch((error) => {
-      setEvidenceErrorMessage(error instanceof Error ? error.message : '依据加载失败');
-    });
+    void qaChatService
+      .getEvidence(message.messageId)
+      .catch((error) => {
+        setEvidenceErrorMessage(error instanceof Error ? error.message : '依据加载失败');
+      })
+      .finally(() => {
+        setLoadingEvidence(false);
+      });
   }
 
   function handleUseRecommendation(question: string) {
@@ -533,6 +548,27 @@ export function ChatPage() {
             {evidenceDetail ? (
               <div className="chat-evidence-content">
                 <section className="chat-evidence-card">
+                  <h3>图谱缩略图</h3>
+                  <div className="chat-chip-row">
+                    <span className="chat-chip">
+                      {evidenceDetail.graphData.center
+                        ? `中心实体：${evidenceDetail.graphData.center.entityName} · ${evidenceDetail.graphData.center.entityType}`
+                        : '中心实体：未命中'}
+                    </span>
+                    <span className="chat-chip">节点数：{evidenceDetail.graphData.nodes.length}</span>
+                    <span className="chat-chip">边数：{evidenceDetail.graphData.edges.length}</span>
+                  </div>
+                  <div className="chat-evidence-grid">
+                    {evidenceDetail.graphData.nodes.map((node) => (
+                      <div key={node.nodeId} className="chat-evidence-mini-card">
+                        <strong>{node.nodeName}</strong>
+                        <span>{node.nodeType}</span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="chat-evidence-card">
                   <h3>命中实体</h3>
                   <div className="chat-chip-row">
                     {evidenceDetail.entities.map((entity) => (
@@ -563,12 +599,40 @@ export function ChatPage() {
                 </section>
 
                 <section className="chat-evidence-card">
+                  <h3>阶段耗时</h3>
+                  <div className="chat-evidence-grid">
+                    <div className="chat-evidence-mini-card">
+                      <strong>总耗时</strong>
+                      <span>{formatDurationLabel(evidenceDetail.timings.totalDurationMs)}</span>
+                    </div>
+                    <div className="chat-evidence-mini-card">
+                      <strong>NLP</strong>
+                      <span>{formatDurationLabel(evidenceDetail.timings.nlpDurationMs)}</span>
+                    </div>
+                    <div className="chat-evidence-mini-card">
+                      <strong>图谱检索</strong>
+                      <span>{formatDurationLabel(evidenceDetail.timings.graphDurationMs)}</span>
+                    </div>
+                    <div className="chat-evidence-mini-card">
+                      <strong>Prompt 组装</strong>
+                      <span>{formatDurationLabel(evidenceDetail.timings.promptDurationMs)}</span>
+                    </div>
+                    <div className="chat-evidence-mini-card">
+                      <strong>AI 调用</strong>
+                      <span>{formatDurationLabel(evidenceDetail.timings.aiDurationMs)}</span>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="chat-evidence-card">
                   <h3>置信度</h3>
                   <div className="chat-evidence-text">{Math.round(evidenceDetail.confidence * 100)}%</div>
                 </section>
               </div>
             ) : (
-              <div className="chat-empty-sidebar">{evidenceErrorMessage || '暂无依据内容。'}</div>
+              <div className="chat-empty-sidebar">
+                {loadingEvidence ? '正在加载知识依据...' : evidenceErrorMessage || '暂无依据内容。'}
+              </div>
             )}
           </aside>
         ) : null}
