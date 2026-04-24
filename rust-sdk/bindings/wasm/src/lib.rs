@@ -191,6 +191,14 @@ pub async fn sdk_invoke(method: String, payload: JsValue) -> Result<JsValue, JsV
                 .map_err(|error| js_error(format!("favorite.add 调用失败: {}", error.message)))?;
             to_value(&result).map_err(|error| js_error(format!("收藏结果序列化失败: {error}")))
         }
+        "favorite.detail" => {
+            let payload: FavoriteDetailPayload =
+                from_value(payload).map_err(|error| js_error(format!("favoriteDetailPayload 解析失败: {error}")))?;
+            let result = favorite::get_favorite_detail(payload.favorite_id)
+                .await
+                .map_err(|error| js_error(format!("favorite.detail 调用失败: {}", error.message)))?;
+            to_value(&result).map_err(|error| js_error(format!("收藏详情结果序列化失败: {error}")))
+        }
         "favorite.remove" => {
             let payload: FavoriteRemovePayload =
                 from_value(payload).map_err(|error| js_error(format!("favoriteRemovePayload 解析失败: {error}")))?;
@@ -282,6 +290,12 @@ struct FavoriteListPayload {
 #[serde(rename_all = "camelCase")]
 struct FavoriteMessagePayload {
     message_id: u64,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FavoriteDetailPayload {
+    favorite_id: u64,
 }
 
 #[derive(serde::Deserialize)]

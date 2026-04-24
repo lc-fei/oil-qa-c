@@ -10,8 +10,19 @@ pub struct FavoriteItem {
     pub session_id: u64,
     pub message_id: u64,
     pub title: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FavoriteDetail {
+    pub favorite_id: u64,
+    pub favorite_type: String,
+    pub session_id: u64,
+    pub message_id: u64,
+    pub title: String,
     pub question: String,
-    pub answer_snippet: String,
+    pub answer: String,
     pub created_at: String,
 }
 
@@ -60,6 +71,10 @@ pub async fn list_favorites(query: FavoriteQuery) -> SdkResult<PaginatedFavorite
         None,
     )
     .await
+}
+
+pub async fn get_favorite_detail(favorite_id: u64) -> SdkResult<FavoriteDetail> {
+    invoke_transport("favorite.detail", serde_json::json!({ "favoriteId": favorite_id }), None).await
 }
 
 pub async fn favorite_message(message_id: u64) -> SdkResult<FavoriteMessageResult> {

@@ -1,13 +1,14 @@
-import type { FeedbackType, FavoriteItem } from '@oil-qa-c/shared';
+import type { FavoriteItemDetail, FavoriteItemSummary, FeedbackType } from '@oil-qa-c/shared';
 import { useChatStore, useFavoriteStore, useSessionStore } from '@oil-qa-c/store';
 import {
   cancelFavoriteWithSdk,
   favoriteMessageWithSdk,
+  getFavoriteDetailWithSdk,
   listFavoritesWithSdk,
   submitFeedbackWithSdk,
 } from '@oil-qa-c/wasm-sdk';
 
-function buildOptimisticFavoriteItem(messageId: number): FavoriteItem | null {
+function buildOptimisticFavoriteItem(messageId: number): FavoriteItemSummary | null {
   const chatState = useChatStore.getState();
   const sessionState = useFavoriteStore.getState();
   const targetMessage = chatState.messages.find((message) => message.messageId === messageId);
@@ -22,8 +23,6 @@ function buildOptimisticFavoriteItem(messageId: number): FavoriteItem | null {
     sessionId: useSessionStore.getState().currentSessionId ?? 0,
     messageId,
     title: targetMessage.question,
-    question: targetMessage.question,
-    answerSnippet: targetMessage.answerSummary || targetMessage.answer.slice(0, 120),
     createdAt: targetMessage.createdAt,
   };
 }
@@ -57,6 +56,16 @@ export const favoriteService = {
     }
 
     return result;
+  },
+  async getDetail(favoriteId: number): Promise<FavoriteItemDetail> {
+    const cachedDetail = useFavoriteStore.getState().detailByFavoriteId[favoriteId];
+    if (cachedDetail) {
+      return cachedDetail;
+    }
+
+    const detail = await getFavoriteDetailWithSdk(favoriteId);
+    useFavoriteStore.getState().setDetail(detail);
+    return detail;
   },
   async cancelFavorite(favoriteId: number, messageId?: number) {
     await cancelFavoriteWithSdk(favoriteId);

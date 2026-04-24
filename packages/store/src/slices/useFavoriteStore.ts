@@ -1,21 +1,24 @@
 import { create } from 'zustand';
-import type { FavoriteItem } from '@oil-qa-c/shared';
+import type { FavoriteItemDetail, FavoriteItemSummary } from '@oil-qa-c/shared';
 
 interface FavoriteState {
-  items: FavoriteItem[];
+  items: FavoriteItemSummary[];
+  detailByFavoriteId: Record<number, FavoriteItemDetail>;
   keyword: string;
   total: number;
   favoriteIdsByMessageId: Record<number, number>;
-  setItems: (items: FavoriteItem[]) => void;
+  setItems: (items: FavoriteItemSummary[]) => void;
   setTotal: (total: number) => void;
   setKeyword: (keyword: string) => void;
-  upsertFavoriteItem: (item: FavoriteItem) => void;
+  upsertFavoriteItem: (item: FavoriteItemSummary) => void;
+  setDetail: (detail: FavoriteItemDetail) => void;
   removeFavoriteById: (favoriteId: number) => void;
   bindMessageFavoriteId: (messageId: number, favoriteId: number) => void;
 }
 
 export const useFavoriteStore = create<FavoriteState>((set) => ({
   items: [],
+  detailByFavoriteId: {},
   keyword: '',
   total: 0,
   favoriteIdsByMessageId: {},
@@ -34,6 +37,14 @@ export const useFavoriteStore = create<FavoriteState>((set) => ({
   },
   setKeyword(keyword) {
     set({ keyword });
+  },
+  setDetail(detail) {
+    set((state) => ({
+      detailByFavoriteId: {
+        ...state.detailByFavoriteId,
+        [detail.favoriteId]: detail,
+      },
+    }));
   },
   upsertFavoriteItem(item) {
     set((state) => {
@@ -59,10 +70,14 @@ export const useFavoriteStore = create<FavoriteState>((set) => ({
         delete nextFavoriteIdsByMessageId[removedItem.messageId];
       }
 
+      const nextDetailByFavoriteId = { ...state.detailByFavoriteId };
+      delete nextDetailByFavoriteId[favoriteId];
+
       return {
         items: state.items.filter((item) => item.favoriteId !== favoriteId),
         total: removedItem ? Math.max(0, state.total - 1) : state.total,
         favoriteIdsByMessageId: nextFavoriteIdsByMessageId,
+        detailByFavoriteId: nextDetailByFavoriteId,
       };
     });
   },

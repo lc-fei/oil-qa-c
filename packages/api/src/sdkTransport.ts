@@ -97,6 +97,10 @@ export function createWebSdkTransport() {
         const payload = normalizedPayload as { messageId: number };
         return favoriteApi.favoriteMessage(payload.messageId);
       }
+      case 'favorite.detail': {
+        const payload = normalizedPayload as { favoriteId: number };
+        return favoriteApi.detail(payload.favoriteId);
+      }
       case 'favorite.remove': {
         const payload = normalizedPayload as { favoriteId: number };
         await favoriteApi.cancelFavorite(payload.favoriteId);

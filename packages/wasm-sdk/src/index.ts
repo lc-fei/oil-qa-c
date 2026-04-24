@@ -3,7 +3,8 @@ import type {
   ChatDomainState,
   CurrentUser,
   EvidenceDetail,
-  FavoriteItem,
+  FavoriteItemDetail,
+  FavoriteItemSummary,
   FeedbackType,
   MessageChunk,
   PaginatedResult,
@@ -224,7 +225,11 @@ export async function listFavoritesWithSdk(options: {
   pageNum?: number;
   pageSize?: number;
 } = {}) {
-  return invokeSdk<PaginatedResult<FavoriteItem>>('favorite.list', options);
+  return invokeSdk<PaginatedResult<FavoriteItemSummary>>('favorite.list', options);
+}
+
+export async function getFavoriteDetailWithSdk(favoriteId: number) {
+  return invokeSdk<FavoriteItemDetail>('favorite.detail', { favoriteId });
 }
 
 export async function favoriteMessageWithSdk(messageId: number) {

@@ -1,4 +1,4 @@
-import type { FavoriteItem, PaginatedResult } from '@oil-qa-c/shared';
+import type { FavoriteItemDetail, FavoriteItemSummary, PaginatedResult } from '@oil-qa-c/shared';
 import type { ApiClient } from '../client';
 
 export interface FavoriteQuery {
@@ -31,7 +31,10 @@ export function createFavoriteApi(client: ApiClient) {
 
       const queryString = params.toString();
       const url = queryString ? `/api/client/favorites?${queryString}` : '/api/client/favorites';
-      return client.get<PaginatedResult<FavoriteItem>>(url);
+      return client.get<PaginatedResult<FavoriteItemSummary>>(url);
+    },
+    detail(favoriteId: number) {
+      return client.get<FavoriteItemDetail>(`/api/client/favorites/${favoriteId}`);
     },
     favoriteMessage(messageId: number) {
       return client.post<Record<string, never>, { favoriteId: number; messageId: number; favorite: boolean }>(

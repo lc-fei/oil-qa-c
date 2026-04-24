@@ -202,15 +202,18 @@ export interface EvidenceDetail {
   confidence: number;
 }
 
-export interface FavoriteItem {
+export interface FavoriteItemSummary {
   favoriteId: number;
   favoriteType: 'MESSAGE' | 'SESSION';
   sessionId: number;
   messageId: number;
   title: string;
-  question: string;
-  answerSnippet: string;
   createdAt: string;
+}
+
+export interface FavoriteItemDetail extends FavoriteItemSummary {
+  question: string;
+  answer: string;
 }
 
 export type FeedbackType = 'LIKE' | 'DISLIKE';
