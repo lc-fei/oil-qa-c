@@ -1,6 +1,9 @@
 .chat-page {
-  min-height: 100vh;
+  /* 首页工作台固定在一个视口内，避免会话列表把整页高度继续撑大。 */
+  height: 100vh;
   padding: 16px;
+  overflow: hidden;
+  box-sizing: border-box;
   background:
     radial-gradient(circle at top left, rgba(16, 163, 127, 0.08), transparent 26%),
     radial-gradient(circle at top right, rgba(219, 234, 254, 0.8), transparent 24%),
@@ -11,7 +14,9 @@
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr);
   gap: 16px;
-  min-height: calc(100vh - 32px);
+  height: calc(100vh - 32px);
+  min-height: 0;
+  overflow: hidden;
 }
 
 .chat-shell--with-evidence {
@@ -24,6 +29,7 @@
   background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
   overflow: hidden;
+  min-height: 0;
 }
 
 .chat-sidebar {
@@ -31,6 +37,7 @@
   flex-direction: column;
   gap: 16px;
   padding: 20px;
+  min-height: 0;
 }
 
 .chat-brand strong {
@@ -94,6 +101,7 @@
 .chat-session-wrap {
   flex: 1;
   overflow: auto;
+  min-height: 0;
   padding-right: 2px;
 }
 
@@ -128,11 +136,29 @@
 
 .chat-session-actions {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   margin-top: 12px;
   opacity: 0;
   transition: opacity 0.2s ease;
+}
+
+.chat-session-actions .chat-session-badge {
+  flex-shrink: 0;
+}
+
+.chat-session-actions .chat-session-action {
+  flex-shrink: 0;
+}
+
+.chat-session-actions .chat-session-action + .chat-session-action {
+  margin-left: 8px;
+}
+
+.chat-session-actions .chat-session-badge + .chat-session-action {
+  margin-left: auto;
 }
 
 .chat-session-card:hover .chat-session-actions,
@@ -235,6 +261,7 @@
 .chat-main {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
 }
 
 .chat-main-header {
@@ -277,6 +304,7 @@
 .chat-main-content,
 .chat-message-list {
   overflow: auto;
+  min-height: 0;
 }
 
 .chat-main-content {
@@ -434,6 +462,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
 }
 
 .chat-evidence-header {
@@ -454,6 +483,7 @@
 .chat-evidence-content {
   flex: 1;
   overflow: auto;
+  min-height: 0;
   padding: 20px;
 }
 
