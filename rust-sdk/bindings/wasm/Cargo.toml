@@ -10,6 +10,7 @@ crate-type = ["cdylib", "rlib"]
 oil-qa-core = { path = "../../crates/core" }
 oil-qa-auth = { path = "../../crates/auth" }
 oil-qa-favorite = { path = "../../crates/favorite" }
+oil-qa-monitor = { path = "../../crates/monitor" }
 oil-qa-platform = { path = "../../crates/platform" }
 oil-qa-qa = { path = "../../crates/qa" }
 js-sys = "0.3"

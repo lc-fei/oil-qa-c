@@ -7,6 +7,8 @@ import { createRecommendationApi } from './modules/recommendationApi';
 import { createQaChatApi } from './modules/qaChatApi';
 import { createFavoriteApi } from './modules/favoriteApi';
 import { createFeedbackApi } from './modules/feedbackApi';
+import { createMonitorApi } from './modules/monitorApi';
+import { createExceptionLogApi } from './modules/exceptionLogApi';
 
 export interface SdkTransportRequest {
   method: string;
@@ -59,6 +61,8 @@ export function createWebSdkTransport() {
     const chatApi = createQaChatApi(client);
     const favoriteApi = createFavoriteApi(client);
     const feedbackApi = createFeedbackApi(client);
+    const monitorApi = createMonitorApi(client);
+    const exceptionLogApi = createExceptionLogApi(client);
 
     switch (request.method) {
       case 'auth.login':
@@ -119,6 +123,59 @@ export function createWebSdkTransport() {
           feedbackReason: payload.feedbackReason,
         });
       }
+      case 'monitor.overview':
+        return monitorApi.overview(normalizedPayload as Parameters<typeof monitorApi.overview>[0]);
+      case 'monitor.requests.list':
+        return monitorApi.listRequests(normalizedPayload as Parameters<typeof monitorApi.listRequests>[0]);
+      case 'monitor.requests.detail': {
+        const payload = normalizedPayload as { requestId: string };
+        return monitorApi.requestDetail(payload.requestId);
+      }
+      case 'monitor.requests.nlp': {
+        const payload = normalizedPayload as { requestId: string };
+        return monitorApi.nlpDetail(payload.requestId);
+      }
+      case 'monitor.requests.graph_retrieval': {
+        const payload = normalizedPayload as { requestId: string };
+        return monitorApi.graphRetrievalDetail(payload.requestId);
+      }
+      case 'monitor.requests.prompt':
+        return monitorApi.promptDetail(normalizedPayload as Parameters<typeof monitorApi.promptDetail>[0]);
+      case 'monitor.requests.ai_call': {
+        const payload = normalizedPayload as { requestId: string };
+        return monitorApi.aiCallDetail(payload.requestId);
+      }
+      case 'monitor.requests.timings': {
+        const payload = normalizedPayload as { requestId: string };
+        return monitorApi.timings(payload.requestId);
+      }
+      case 'monitor.statistics.trend':
+        return monitorApi.trend(normalizedPayload as Parameters<typeof monitorApi.trend>[0]);
+      case 'monitor.statistics.top_questions':
+        return monitorApi.topQuestions(normalizedPayload as Parameters<typeof monitorApi.topQuestions>[0]);
+      case 'monitor.statistics.performance':
+        return monitorApi.performance(normalizedPayload as Parameters<typeof monitorApi.performance>[0]);
+      case 'exception_logs.list':
+        return exceptionLogApi.list(normalizedPayload as Parameters<typeof exceptionLogApi.list>[0]);
+      case 'exception_logs.detail': {
+        const payload = normalizedPayload as { exceptionId: string };
+        return exceptionLogApi.detail(payload.exceptionId);
+      }
+      case 'exception_logs.summary':
+        return exceptionLogApi.summary(normalizedPayload as Parameters<typeof exceptionLogApi.summary>[0]);
+      case 'exception_logs.handle_status.update': {
+        const payload = normalizedPayload as Parameters<typeof exceptionLogApi.updateHandleStatus>[1] & {
+          exceptionId: string;
+        };
+        return exceptionLogApi.updateHandleStatus(payload.exceptionId, {
+          handleStatus: payload.handleStatus,
+          handleRemark: payload.handleRemark,
+        });
+      }
+      case 'exception_logs.handle_status.batch_update':
+        return exceptionLogApi.batchUpdateHandleStatus(
+          normalizedPayload as Parameters<typeof exceptionLogApi.batchUpdateHandleStatus>[0],
+        );
       default:
         // 未注册 method 直接失败，能尽早暴露 SDK 与 Web transport 的契约漂移。
         throw new Error(`未支持的 SDK transport 方法: ${request.method}`);

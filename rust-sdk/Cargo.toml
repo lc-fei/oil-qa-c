@@ -6,6 +6,7 @@ members = [
   "crates/qa",
   "crates/graph",
   "crates/favorite",
+  "crates/monitor",
   "crates/cache",
   "crates/platform",
 ]

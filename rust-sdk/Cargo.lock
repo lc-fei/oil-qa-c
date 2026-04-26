@@ -102,6 +102,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "oil-qa-monitor"
+version = "0.1.0"
+dependencies = [
+ "oil-qa-core",
+ "oil-qa-platform",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "oil-qa-platform"
 version = "0.1.0"
 dependencies = [
@@ -133,6 +143,7 @@ dependencies = [
  "oil-qa-auth",
  "oil-qa-core",
  "oil-qa-favorite",
+ "oil-qa-monitor",
  "oil-qa-platform",
  "oil-qa-qa",
  "serde",

@@ -1,0 +1,38 @@
+import {
+  batchUpdateExceptionHandleStatusWithSdk,
+  getExceptionLogDetailWithSdk,
+  getExceptionLogSummaryWithSdk,
+  getMonitorAiCallDetailWithSdk,
+  getMonitorGraphRetrievalDetailWithSdk,
+  getMonitorNlpDetailWithSdk,
+  getMonitorOverviewWithSdk,
+  getMonitorPerformanceWithSdk,
+  getMonitorPromptDetailWithSdk,
+  getMonitorRequestDetailWithSdk,
+  getMonitorTimingDetailWithSdk,
+  getMonitorTopQuestionsWithSdk,
+  getMonitorTrendWithSdk,
+  listExceptionLogsWithSdk,
+  listMonitorRequestsWithSdk,
+  updateExceptionHandleStatusWithSdk,
+} from '@oil-qa-c/wasm-sdk';
+
+export const monitorService = {
+  // 管理端监控能力统一从 SDK façade 暴露，页面层不直接感知 admin 接口路径。
+  getOverview: getMonitorOverviewWithSdk,
+  listRequests: listMonitorRequestsWithSdk,
+  getRequestDetail: getMonitorRequestDetailWithSdk,
+  getNlpDetail: getMonitorNlpDetailWithSdk,
+  getGraphRetrievalDetail: getMonitorGraphRetrievalDetailWithSdk,
+  getPromptDetail: getMonitorPromptDetailWithSdk,
+  getAiCallDetail: getMonitorAiCallDetailWithSdk,
+  getTimingDetail: getMonitorTimingDetailWithSdk,
+  getTrend: getMonitorTrendWithSdk,
+  getTopQuestions: getMonitorTopQuestionsWithSdk,
+  getPerformance: getMonitorPerformanceWithSdk,
+  listExceptionLogs: listExceptionLogsWithSdk,
+  getExceptionLogDetail: getExceptionLogDetailWithSdk,
+  getExceptionLogSummary: getExceptionLogSummaryWithSdk,
+  updateExceptionHandleStatus: updateExceptionHandleStatusWithSdk,
+  batchUpdateExceptionHandleStatus: batchUpdateExceptionHandleStatusWithSdk,
+};

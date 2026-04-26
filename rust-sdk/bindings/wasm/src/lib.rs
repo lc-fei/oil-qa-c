@@ -1,5 +1,6 @@
 use oil_qa_auth as auth;
 use oil_qa_favorite as favorite;
+use oil_qa_monitor as monitor;
 use oil_qa_platform as platform;
 use oil_qa_qa as qa;
 use serde_wasm_bindgen::{from_value, to_value};
@@ -31,6 +32,7 @@ pub async fn sdk_invoke(method: String, payload: JsValue) -> Result<JsValue, JsV
             "authStatus": auth::module_status(),
             "qaStatus": qa::module_status(),
             "favoriteStatus": favorite::module_status(),
+            "monitorStatus": monitor::module_status(),
             "platformStatus": platform::module_status(),
         }))
         .map_err(|error| js_error(format!("状态序列化失败: {error}"))),
@@ -244,6 +246,223 @@ pub async fn sdk_invoke(method: String, payload: JsValue) -> Result<JsValue, JsV
             .map_err(|error| js_error(format!("feedback.submit 调用失败: {}", error.message)))?;
             to_value(&result).map_err(|error| js_error(format!("反馈结果序列化失败: {error}")))
         }
+        // 管理端运行监控接口同样走 SDK 单入口，便于后续管理端 Web/Electron 复用。
+        "monitor.overview" => {
+            let payload: monitor::MonitorOverviewQuery = from_value(payload)
+                .map_err(|error| js_error(format!("monitorOverviewPayload 解析失败: {error}")))?;
+            let result = monitor::get_monitor_overview(payload)
+                .await
+                .map_err(|error| {
+                    js_error(format!("monitor.overview 调用失败: {}", error.message))
+                })?;
+            to_value(&result).map_err(|error| js_error(format!("运行总览结果序列化失败: {error}")))
+        }
+        "monitor.requests.list" => {
+            let payload: monitor::MonitorRequestQuery = from_value(payload).map_err(|error| {
+                js_error(format!("monitorRequestListPayload 解析失败: {error}"))
+            })?;
+            let result = monitor::list_monitor_requests(payload)
+                .await
+                .map_err(|error| {
+                    js_error(format!("monitor.requests.list 调用失败: {}", error.message))
+                })?;
+            to_value(&result)
+                .map_err(|error| js_error(format!("请求监控列表结果序列化失败: {error}")))
+        }
+        "monitor.requests.detail" => {
+            let payload: MonitorRequestIdPayload = from_value(payload)
+                .map_err(|error| js_error(format!("monitorRequestIdPayload 解析失败: {error}")))?;
+            let result = monitor::get_monitor_request_detail(payload.request_id)
+                .await
+                .map_err(|error| {
+                    js_error(format!(
+                        "monitor.requests.detail 调用失败: {}",
+                        error.message
+                    ))
+                })?;
+            to_value(&result)
+                .map_err(|error| js_error(format!("请求监控详情结果序列化失败: {error}")))
+        }
+        "monitor.requests.nlp" => {
+            let payload: MonitorRequestIdPayload = from_value(payload)
+                .map_err(|error| js_error(format!("monitorNlpPayload 解析失败: {error}")))?;
+            let result = monitor::get_nlp_detail(payload.request_id)
+                .await
+                .map_err(|error| {
+                    js_error(format!("monitor.requests.nlp 调用失败: {}", error.message))
+                })?;
+            to_value(&result).map_err(|error| js_error(format!("NLP详情结果序列化失败: {error}")))
+        }
+        "monitor.requests.graph_retrieval" => {
+            let payload: MonitorRequestIdPayload = from_value(payload)
+                .map_err(|error| js_error(format!("monitorGraphPayload 解析失败: {error}")))?;
+            let result = monitor::get_graph_retrieval_detail(payload.request_id)
+                .await
+                .map_err(|error| {
+                    js_error(format!(
+                        "monitor.requests.graph_retrieval 调用失败: {}",
+                        error.message
+                    ))
+                })?;
+            to_value(&result)
+                .map_err(|error| js_error(format!("图谱检索详情结果序列化失败: {error}")))
+        }
+        "monitor.requests.prompt" => {
+            let payload: monitor::PromptDetailQuery = from_value(payload)
+                .map_err(|error| js_error(format!("monitorPromptPayload 解析失败: {error}")))?;
+            let result = monitor::get_prompt_detail(payload).await.map_err(|error| {
+                js_error(format!(
+                    "monitor.requests.prompt 调用失败: {}",
+                    error.message
+                ))
+            })?;
+            to_value(&result)
+                .map_err(|error| js_error(format!("Prompt详情结果序列化失败: {error}")))
+        }
+        "monitor.requests.ai_call" => {
+            let payload: MonitorRequestIdPayload = from_value(payload)
+                .map_err(|error| js_error(format!("monitorAiCallPayload 解析失败: {error}")))?;
+            let result = monitor::get_ai_call_detail(payload.request_id)
+                .await
+                .map_err(|error| {
+                    js_error(format!(
+                        "monitor.requests.ai_call 调用失败: {}",
+                        error.message
+                    ))
+                })?;
+            to_value(&result)
+                .map_err(|error| js_error(format!("AI调用详情结果序列化失败: {error}")))
+        }
+        "monitor.requests.timings" => {
+            let payload: MonitorRequestIdPayload = from_value(payload)
+                .map_err(|error| js_error(format!("monitorTimingsPayload 解析失败: {error}")))?;
+            let result = monitor::get_timing_detail(payload.request_id)
+                .await
+                .map_err(|error| {
+                    js_error(format!(
+                        "monitor.requests.timings 调用失败: {}",
+                        error.message
+                    ))
+                })?;
+            to_value(&result).map_err(|error| js_error(format!("阶段耗时结果序列化失败: {error}")))
+        }
+        "monitor.statistics.trend" => {
+            let payload: monitor::TrendQuery = from_value(payload)
+                .map_err(|error| js_error(format!("monitorTrendPayload 解析失败: {error}")))?;
+            let result = monitor::get_trend_statistics(payload)
+                .await
+                .map_err(|error| {
+                    js_error(format!(
+                        "monitor.statistics.trend 调用失败: {}",
+                        error.message
+                    ))
+                })?;
+            to_value(&result).map_err(|error| js_error(format!("趋势统计结果序列化失败: {error}")))
+        }
+        "monitor.statistics.top_questions" => {
+            let payload: monitor::TopQuestionQuery = from_value(payload).map_err(|error| {
+                js_error(format!("monitorTopQuestionsPayload 解析失败: {error}"))
+            })?;
+            let result = monitor::get_top_questions(payload).await.map_err(|error| {
+                js_error(format!(
+                    "monitor.statistics.top_questions 调用失败: {}",
+                    error.message
+                ))
+            })?;
+            to_value(&result).map_err(|error| js_error(format!("高频问题结果序列化失败: {error}")))
+        }
+        "monitor.statistics.performance" => {
+            let payload: monitor::PerformanceQuery = from_value(payload).map_err(|error| {
+                js_error(format!("monitorPerformancePayload 解析失败: {error}"))
+            })?;
+            let result = monitor::get_performance_statistics(payload)
+                .await
+                .map_err(|error| {
+                    js_error(format!(
+                        "monitor.statistics.performance 调用失败: {}",
+                        error.message
+                    ))
+                })?;
+            to_value(&result).map_err(|error| js_error(format!("性能分析结果序列化失败: {error}")))
+        }
+        // 异常日志接口保持独立方法命名，避免和问答链路监控混淆。
+        "exception_logs.list" => {
+            let payload: monitor::ExceptionLogQuery = from_value(payload)
+                .map_err(|error| js_error(format!("exceptionLogListPayload 解析失败: {error}")))?;
+            let result = monitor::list_exception_logs(payload)
+                .await
+                .map_err(|error| {
+                    js_error(format!("exception_logs.list 调用失败: {}", error.message))
+                })?;
+            to_value(&result)
+                .map_err(|error| js_error(format!("异常日志列表结果序列化失败: {error}")))
+        }
+        "exception_logs.detail" => {
+            let payload: ExceptionLogIdPayload = from_value(payload)
+                .map_err(|error| js_error(format!("exceptionLogIdPayload 解析失败: {error}")))?;
+            let result = monitor::get_exception_log_detail(payload.exception_id)
+                .await
+                .map_err(|error| {
+                    js_error(format!("exception_logs.detail 调用失败: {}", error.message))
+                })?;
+            to_value(&result)
+                .map_err(|error| js_error(format!("异常日志详情结果序列化失败: {error}")))
+        }
+        "exception_logs.summary" => {
+            let payload: monitor::PerformanceQuery = from_value(payload).map_err(|error| {
+                js_error(format!("exceptionLogSummaryPayload 解析失败: {error}"))
+            })?;
+            let result = monitor::get_exception_log_summary(payload)
+                .await
+                .map_err(|error| {
+                    js_error(format!(
+                        "exception_logs.summary 调用失败: {}",
+                        error.message
+                    ))
+                })?;
+            to_value(&result)
+                .map_err(|error| js_error(format!("异常日志摘要结果序列化失败: {error}")))
+        }
+        "exception_logs.handle_status.update" => {
+            let payload: ExceptionHandleStatusUpdatePayload =
+                from_value(payload).map_err(|error| {
+                    js_error(format!("exceptionHandleStatusPayload 解析失败: {error}"))
+                })?;
+            let result = monitor::update_exception_handle_status(
+                payload.exception_id,
+                monitor::ExceptionHandleStatusPayload {
+                    handle_status: payload.handle_status,
+                    handle_remark: payload.handle_remark,
+                },
+            )
+            .await
+            .map_err(|error| {
+                js_error(format!(
+                    "exception_logs.handle_status.update 调用失败: {}",
+                    error.message
+                ))
+            })?;
+            to_value(&result)
+                .map_err(|error| js_error(format!("异常处理状态结果序列化失败: {error}")))
+        }
+        "exception_logs.handle_status.batch_update" => {
+            let payload: monitor::BatchExceptionHandleStatusPayload =
+                from_value(payload).map_err(|error| {
+                    js_error(format!(
+                        "batchExceptionHandleStatusPayload 解析失败: {error}"
+                    ))
+                })?;
+            let result = monitor::batch_update_exception_handle_status(payload)
+                .await
+                .map_err(|error| {
+                    js_error(format!(
+                        "exception_logs.handle_status.batch_update 调用失败: {}",
+                        error.message
+                    ))
+                })?;
+            to_value(&result)
+                .map_err(|error| js_error(format!("批量异常处理状态结果序列化失败: {error}")))
+        }
         _ => Err(js_error(format!("未注册的 SDK 方法: {method}"))),
     }
 }
@@ -360,4 +579,24 @@ struct ApplyMessageChunkPayload {
 #[serde(rename_all = "camelCase")]
 struct SyncSessionStatePayload {
     detail: qa::QaSessionDetail,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct MonitorRequestIdPayload {
+    request_id: String,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ExceptionLogIdPayload {
+    exception_id: String,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ExceptionHandleStatusUpdatePayload {
+    exception_id: String,
+    handle_status: monitor::HandleStatus,
+    handle_remark: Option<String>,
 }

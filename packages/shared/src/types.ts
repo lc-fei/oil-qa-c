@@ -253,6 +253,250 @@ export interface PaginatedResult<T> {
   list: T[];
 }
 
+export interface AdminPaginatedResult<T> extends PaginatedResult<T> {
+  pageNum?: number;
+  pageSize?: number;
+}
+
+export type MonitorRangeType = 'today' | 'last7days' | 'last30days' | 'custom';
+export type MonitorRequestStatus = 'SUCCESS' | 'FAILED' | 'PROCESSING' | 'PARTIAL_SUCCESS' | 'TIMEOUT';
+export type MonitorRequestSource = 'CLIENT_WEB' | 'ADMIN_DEBUG' | 'OPEN_API' | 'SCHEDULE_TASK' | 'UNKNOWN';
+export type MonitorAiCallStatus = 'SUCCESS' | 'FAILED' | 'TIMEOUT' | 'RETRY_SUCCESS' | 'RETRY_FAILED';
+export type ExceptionLevel = 'INFO' | 'WARN' | 'ERROR' | 'FATAL';
+export type ExceptionHandleStatus = 'UNHANDLED' | 'HANDLING' | 'HANDLED' | 'IGNORED';
+
+export interface MonitorOverviewQuery {
+  rangeType?: MonitorRangeType;
+  startTime?: string;
+  endTime?: string;
+}
+
+export interface MonitorOverview {
+  totalQaCount: number;
+  successQaCount: number;
+  failedQaCount: number;
+  avgResponseTimeMs: number;
+  aiCallCount: number;
+  graphHitCount: number;
+  graphHitRate: number;
+  exceptionCount: number;
+  onlineAdminUserCount: number;
+  successRate: number;
+}
+
+export interface MonitorRequestQuery {
+  pageNum?: number;
+  pageSize?: number;
+  keyword?: string;
+  requestStatus?: MonitorRequestStatus;
+  requestSource?: MonitorRequestSource;
+  startTime?: string;
+  endTime?: string;
+  minDurationMs?: number;
+  maxDurationMs?: number;
+  hasGraphHit?: 0 | 1;
+  hasException?: 0 | 1;
+}
+
+export interface MonitorRequestSummary {
+  requestId: string;
+  question: string;
+  requestTime: string;
+  requestSource: MonitorRequestSource;
+  requestStatus: MonitorRequestStatus;
+  responseSummary: string;
+  totalDurationMs: number;
+  graphHit: boolean;
+  aiCallStatus: MonitorAiCallStatus;
+  exceptionFlag: boolean;
+}
+
+export interface MonitorRequestDetail {
+  requestId: string;
+  question: string;
+  requestTime: string;
+  requestSource: MonitorRequestSource;
+  requestStatus: MonitorRequestStatus;
+  totalDurationMs: number;
+  finalAnswer: string;
+  responseSummary: string;
+  graphHit: boolean;
+  exceptionFlag: boolean;
+  traceId: string;
+  userId: string;
+  userAccount: string;
+}
+
+export interface MonitorNlpDetail {
+  requestId: string;
+  tokenizeResult: string[];
+  keywordList: string[];
+  entityList: Array<Record<string, unknown>>;
+  intent: string;
+  confidence: number;
+  durationMs: number;
+  rawResult?: Record<string, unknown> | null;
+}
+
+export interface MonitorGraphRetrievalDetail {
+  requestId: string;
+  queryCondition: Record<string, unknown>;
+  hitEntityList: Array<Record<string, unknown>>;
+  hitRelationList: Array<Record<string, unknown>>;
+  hitPropertySummary: string[];
+  resultCount: number;
+  validHit: boolean;
+  durationMs: number;
+}
+
+export interface MonitorPromptDetailQuery {
+  requestId: string;
+  includeFullText?: 0 | 1;
+}
+
+export interface MonitorPromptDetail {
+  requestId: string;
+  originalQuestion: string;
+  graphSummary: string;
+  promptSummary: string;
+  promptContent?: string | null;
+  generatedTime: string;
+  durationMs: number;
+}
+
+export interface MonitorAiCallDetail {
+  requestId: string;
+  modelName: string;
+  provider: string;
+  callTime: string;
+  aiCallStatus: MonitorAiCallStatus;
+  responseStatusCode: number;
+  durationMs: number;
+  resultSummary: string;
+  errorMessage?: string | null;
+  retryCount: number;
+}
+
+export interface MonitorTimingPhase {
+  phaseCode: string;
+  phaseName: string;
+  durationMs: number;
+  success: boolean;
+}
+
+export interface MonitorTimingDetail {
+  requestId: string;
+  totalDurationMs: number;
+  phases: MonitorTimingPhase[];
+}
+
+export interface MonitorTrendQuery {
+  metricType: 'qaCount' | 'successRate' | 'avgDuration' | 'exceptionCount' | 'graphHitRate';
+  granularity?: 'day' | 'week';
+  startDate: string;
+  endDate: string;
+}
+
+export interface MonitorTrendItem {
+  statDate: string;
+  metricValue: number;
+}
+
+export interface MonitorTopQuestionQuery {
+  startDate?: string;
+  endDate?: string;
+  topN?: number;
+}
+
+export interface MonitorTopQuestionItem {
+  question: string;
+  count: number;
+}
+
+export interface MonitorPerformanceQuery {
+  startTime?: string;
+  endTime?: string;
+}
+
+export interface MonitorPerformanceStatistics {
+  avgResponseTimeMs: number;
+  p95ResponseTimeMs: number;
+  nlpAvgDurationMs: number;
+  graphAvgDurationMs: number;
+  promptAvgDurationMs: number;
+  aiAvgDurationMs: number;
+  successRate: number;
+  graphHitRate: number;
+  aiFailureRate: number;
+}
+
+export interface ExceptionLogQuery {
+  pageNum?: number;
+  pageSize?: number;
+  exceptionModule?: string;
+  exceptionLevel?: ExceptionLevel;
+  handleStatus?: ExceptionHandleStatus;
+  keyword?: string;
+  startTime?: string;
+  endTime?: string;
+  traceId?: string;
+  requestId?: string;
+}
+
+export interface ExceptionLogSummary {
+  exceptionId: string;
+  exceptionModule: string;
+  exceptionLevel: ExceptionLevel;
+  exceptionType: string;
+  exceptionMessage: string;
+  requestId?: string | null;
+  traceId: string;
+  occurredTime: string;
+  handleStatus: ExceptionHandleStatus;
+  handlerName?: string | null;
+  handledTime?: string | null;
+}
+
+export interface ExceptionLogDetail extends ExceptionLogSummary {
+  stackTrace: string;
+  requestUri: string;
+  requestMethod: string;
+  requestParamSummary: string;
+  contextInfo: Record<string, unknown>;
+  handleRemark?: string | null;
+  handlerId?: string | null;
+}
+
+export interface ExceptionTopModuleItem {
+  module: string;
+  count: number;
+}
+
+export interface ExceptionLogSummaryStatistics {
+  totalCount: number;
+  unhandledCount: number;
+  handlingCount: number;
+  handledCount: number;
+  ignoredCount: number;
+  errorCount: number;
+  fatalCount: number;
+  topModuleList: ExceptionTopModuleItem[];
+}
+
+export interface ExceptionHandleStatusPayload {
+  handleStatus: ExceptionHandleStatus;
+  handleRemark?: string;
+}
+
+export interface BatchExceptionHandleStatusPayload extends ExceptionHandleStatusPayload {
+  exceptionIds: string[];
+}
+
+export interface BatchHandleStatusResult {
+  successCount: number;
+  failCount: number;
+}
+
 export interface RuntimeEnv {
   platform: 'web' | 'electron';
   mode: 'development' | 'production' | 'test';

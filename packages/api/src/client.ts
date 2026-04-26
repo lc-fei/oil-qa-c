@@ -9,7 +9,7 @@ export interface ApiClient {
   options: ApiClientOptions;
   post<TRequest, TResponse>(url: string, payload: TRequest): Promise<TResponse>;
   get<TResponse>(url: string): Promise<TResponse>;
-  put<TRequest>(url: string, payload: TRequest): Promise<void>;
+  put<TRequest, TResponse = void>(url: string, payload: TRequest): Promise<TResponse>;
   delete(url: string): Promise<void>;
 }
 
@@ -117,8 +117,8 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
         method: 'GET',
       });
     },
-    put(url, payload) {
-      return request<void>(url, {
+    put<TRequest, TResponse = void>(url: string, payload: TRequest) {
+      return request<TResponse>(url, {
         method: 'PUT',
         body: JSON.stringify(payload),
       });

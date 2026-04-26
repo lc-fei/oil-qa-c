@@ -7,6 +7,31 @@ import type {
   FavoriteItemSummary,
   FeedbackType,
   MessageChunk,
+  AdminPaginatedResult,
+  BatchExceptionHandleStatusPayload,
+  BatchHandleStatusResult,
+  ExceptionHandleStatusPayload,
+  ExceptionLogDetail,
+  ExceptionLogQuery,
+  ExceptionLogSummary,
+  ExceptionLogSummaryStatistics,
+  MonitorAiCallDetail,
+  MonitorGraphRetrievalDetail,
+  MonitorNlpDetail,
+  MonitorOverview,
+  MonitorOverviewQuery,
+  MonitorPerformanceQuery,
+  MonitorPerformanceStatistics,
+  MonitorPromptDetail,
+  MonitorPromptDetailQuery,
+  MonitorRequestDetail,
+  MonitorRequestQuery,
+  MonitorRequestSummary,
+  MonitorTimingDetail,
+  MonitorTopQuestionItem,
+  MonitorTopQuestionQuery,
+  MonitorTrendItem,
+  MonitorTrendQuery,
   PaginatedResult,
   QaMessage,
   QaSessionDetail,
@@ -254,4 +279,74 @@ export async function submitFeedbackWithSdk(messageId: number, feedbackType: Fee
     feedbackType,
     feedbackReason,
   });
+}
+
+export async function getMonitorOverviewWithSdk(query: MonitorOverviewQuery = {}) {
+  return invokeSdk<MonitorOverview>('monitor.overview', query);
+}
+
+export async function listMonitorRequestsWithSdk(query: MonitorRequestQuery = {}) {
+  return invokeSdk<AdminPaginatedResult<MonitorRequestSummary>>('monitor.requests.list', query);
+}
+
+export async function getMonitorRequestDetailWithSdk(requestId: string) {
+  return invokeSdk<MonitorRequestDetail>('monitor.requests.detail', { requestId });
+}
+
+export async function getMonitorNlpDetailWithSdk(requestId: string) {
+  return invokeSdk<MonitorNlpDetail>('monitor.requests.nlp', { requestId });
+}
+
+export async function getMonitorGraphRetrievalDetailWithSdk(requestId: string) {
+  return invokeSdk<MonitorGraphRetrievalDetail>('monitor.requests.graph_retrieval', { requestId });
+}
+
+export async function getMonitorPromptDetailWithSdk(query: MonitorPromptDetailQuery) {
+  return invokeSdk<MonitorPromptDetail>('monitor.requests.prompt', query);
+}
+
+export async function getMonitorAiCallDetailWithSdk(requestId: string) {
+  return invokeSdk<MonitorAiCallDetail>('monitor.requests.ai_call', { requestId });
+}
+
+export async function getMonitorTimingDetailWithSdk(requestId: string) {
+  return invokeSdk<MonitorTimingDetail>('monitor.requests.timings', { requestId });
+}
+
+export async function getMonitorTrendWithSdk(query: MonitorTrendQuery) {
+  return invokeSdk<MonitorTrendItem[]>('monitor.statistics.trend', query);
+}
+
+export async function getMonitorTopQuestionsWithSdk(query: MonitorTopQuestionQuery = {}) {
+  return invokeSdk<MonitorTopQuestionItem[]>('monitor.statistics.top_questions', query);
+}
+
+export async function getMonitorPerformanceWithSdk(query: MonitorPerformanceQuery = {}) {
+  return invokeSdk<MonitorPerformanceStatistics>('monitor.statistics.performance', query);
+}
+
+export async function listExceptionLogsWithSdk(query: ExceptionLogQuery = {}) {
+  return invokeSdk<AdminPaginatedResult<ExceptionLogSummary>>('exception_logs.list', query);
+}
+
+export async function getExceptionLogDetailWithSdk(exceptionId: string) {
+  return invokeSdk<ExceptionLogDetail>('exception_logs.detail', { exceptionId });
+}
+
+export async function getExceptionLogSummaryWithSdk(query: MonitorPerformanceQuery = {}) {
+  return invokeSdk<ExceptionLogSummaryStatistics>('exception_logs.summary', query);
+}
+
+export async function updateExceptionHandleStatusWithSdk(
+  exceptionId: string,
+  payload: ExceptionHandleStatusPayload,
+) {
+  return invokeSdk<boolean>('exception_logs.handle_status.update', {
+    exceptionId,
+    ...payload,
+  });
+}
+
+export async function batchUpdateExceptionHandleStatusWithSdk(payload: BatchExceptionHandleStatusPayload) {
+  return invokeSdk<BatchHandleStatusResult>('exception_logs.handle_status.batch_update', payload);
 }
