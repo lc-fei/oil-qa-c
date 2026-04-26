@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 const AUTH_TOKEN_STORAGE_KEY: &str = "authToken";
 
 thread_local! {
+    // wasm 当前运行在单线程模型下，thread_local 用来保存 SDK 内部认证快照。
     static AUTH_STATE: RefCell<AuthDomainState> = RefCell::new(create_anonymous_state());
 }
 
@@ -69,6 +70,7 @@ struct LoginResponse {
 }
 
 fn build_event(event_type: &str, payload: serde_json::Value) -> DomainEvent {
+    // 领域事件统一附带发生时间，便于各端后续做状态追踪或埋点。
     DomainEvent {
         event_type: event_type.to_string(),
         occurred_at: js_sys::Date::new_0().to_iso_string().into(),
@@ -77,6 +79,7 @@ fn build_event(event_type: &str, payload: serde_json::Value) -> DomainEvent {
 }
 
 fn set_auth_state(next_state: AuthDomainState) -> AuthDomainState {
+    // 所有认证状态更新都通过这个入口写入 SDK 内部快照。
     AUTH_STATE.with(|state| {
         state.replace(next_state.clone());
     });
@@ -135,6 +138,7 @@ pub fn create_expired_state() -> AuthDomainState {
 
 /// 登录请求由 SDK 统一编排，客户端只需要注册 transport 与 storage。
 pub async fn login(payload: LoginRequest) -> SdkResult<AuthDomainState> {
+    // 登录接口成功后先保存 token，再用 token 拉当前用户，确保认证态包含完整用户信息。
     let login_result: LoginResponse = invoke_transport(
         "auth.login",
         serde_json::to_value(payload).expect("login payload serialize"),
@@ -153,12 +157,16 @@ pub async fn login(payload: LoginRequest) -> SdkResult<AuthDomainState> {
     let current_user: CurrentUser = match current_user {
         Ok(current_user) => current_user,
         Err(error) => {
+            // token 可用性无法确认时清理本地存储，避免下次启动恢复到错误登录态。
             storage_remove(AUTH_TOKEN_STORAGE_KEY).await?;
             return Err(error);
         }
     };
 
-    Ok(set_auth_state(create_authenticated_state(login_result.token, current_user)))
+    Ok(set_auth_state(create_authenticated_state(
+        login_result.token,
+        current_user,
+    )))
 }
 
 /// 启动恢复时由 SDK 先读 storage，再决定是否继续调用当前用户接口。
@@ -167,9 +175,20 @@ pub async fn restore_session() -> SdkResult<AuthDomainState> {
 
     match token {
         Some(token) if !token.is_empty() => {
-            match invoke_transport::<CurrentUser>("auth.current_user", serde_json::json!({}), Some(token.clone())).await {
-                Ok(current_user) => Ok(set_auth_state(create_authenticated_state(token, current_user))),
+            // 恢复登录必须验证 token 能否获取当前用户，不能只凭本地 token 判定已登录。
+            match invoke_transport::<CurrentUser>(
+                "auth.current_user",
+                serde_json::json!({}),
+                Some(token.clone()),
+            )
+            .await
+            {
+                Ok(current_user) => Ok(set_auth_state(create_authenticated_state(
+                    token,
+                    current_user,
+                ))),
                 Err(_) => {
+                    // 当前用户接口失败时视为 token 过期，清理 storage 并暴露过期状态。
                     storage_remove(AUTH_TOKEN_STORAGE_KEY).await?;
                     Ok(set_auth_state(create_expired_state()))
                 }
@@ -182,12 +201,14 @@ pub async fn restore_session() -> SdkResult<AuthDomainState> {
 /// 退出登录时仍由 SDK 负责清理 token 与认证领域状态，保持多端语义一致。
 pub async fn logout() -> SdkResult<AuthDomainState> {
     let current_state = get_auth_state();
+    // 优先使用内存快照中的 token，刷新后内存为空时再回退到 storage。
     let token = match current_state.token {
         Some(token) => Some(token),
         None => storage_get(AUTH_TOKEN_STORAGE_KEY).await?,
     };
 
     if let Some(token) = token {
+        // 后端登出失败不阻断本地退出，客户端必须先恢复到匿名态。
         let _: Result<serde_json::Value, _> =
             invoke_transport("auth.logout", serde_json::json!({}), Some(token)).await;
     }

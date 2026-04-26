@@ -15,6 +15,7 @@ export const useEvidenceStore = create<EvidenceState>((set) => ({
   currentMessageId: null,
   detail: null,
   openPanel(messageId) {
+    // 打开依据面板时记录消息 ID，后续可判断按钮显示“查看”还是“收起”。
     set({
       panelOpen: true,
       currentMessageId: messageId,
@@ -29,6 +30,7 @@ export const useEvidenceStore = create<EvidenceState>((set) => ({
     });
   },
   setDetail(detail) {
+    // 依据详情由 qaChatService 写入，页面只根据是否为空展示加载或内容。
     set({ detail });
   },
 }));

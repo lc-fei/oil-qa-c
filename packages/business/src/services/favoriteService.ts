@@ -14,6 +14,7 @@ function buildOptimisticFavoriteItem(messageId: number): FavoriteItemSummary | n
   const targetMessage = chatState.messages.find((message) => message.messageId === messageId);
 
   if (!targetMessage) {
+    // 消息不在当前会话时不能构造可靠概览，交给下一次收藏列表查询恢复真实状态。
     return null;
   }
 
@@ -29,6 +30,7 @@ function buildOptimisticFavoriteItem(messageId: number): FavoriteItemSummary | n
 
 export const favoriteService = {
   async list(options: { keyword?: string; favoriteType?: 'MESSAGE' | 'SESSION'; pageNum?: number; pageSize?: number } = {}) {
+    // 收藏列表接口只返回概览，详情内容由 getDetail 在用户展开时按需拉取。
     const result = await listFavoritesWithSdk({
       keyword: options.keyword,
       favoriteType: options.favoriteType,
@@ -44,6 +46,7 @@ export const favoriteService = {
   async favoriteMessage(messageId: number) {
     const result = await favoriteMessageWithSdk(messageId);
 
+    // 收藏成功后立即更新当前消息按钮状态，避免等待列表刷新造成交互延迟。
     useChatStore.getState().updateMessageFavorite(messageId, true);
     useFavoriteStore.getState().bindMessageFavoriteId(messageId, result.favoriteId);
 
@@ -60,6 +63,7 @@ export const favoriteService = {
   async getDetail(favoriteId: number): Promise<FavoriteItemDetail> {
     const cachedDetail = useFavoriteStore.getState().detailByFavoriteId[favoriteId];
     if (cachedDetail) {
+      // 展开过的收藏详情直接复用缓存，降低重复打开 Collapse 的接口压力。
       return cachedDetail;
     }
 
@@ -70,6 +74,7 @@ export const favoriteService = {
   async cancelFavorite(favoriteId: number, messageId?: number) {
     await cancelFavoriteWithSdk(favoriteId);
 
+    // 取消收藏需要同时更新收藏页列表和当前聊天消息的收藏态。
     useFavoriteStore.getState().removeFavoriteById(favoriteId);
     if (messageId) {
       useChatStore.getState().updateMessageFavorite(messageId, false);
@@ -80,6 +85,7 @@ export const favoriteService = {
     const targetMessage = useChatStore.getState().messages.find((message) => message.messageId === messageId);
 
     if (targetMessage?.favorite && favoriteId) {
+      // 已有 favoriteId 时可直接删除收藏，避免额外查询收藏列表。
       await this.cancelFavorite(favoriteId, messageId);
       return { favorite: false, favoriteId };
     }

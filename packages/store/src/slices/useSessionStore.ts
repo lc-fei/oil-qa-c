@@ -19,9 +19,11 @@ export const useSessionStore = create<SessionState>((set) => ({
     emptySession: true,
   },
   setSessions(sessions) {
+    // 会话列表排序和过滤规则来自 SDK，store 不再重新加工。
     set({ sessions });
   },
   setCurrentSessionId(currentSessionId) {
+    // 当前会话 ID 用于页面高亮和发送问题时绑定上下文。
     set({ currentSessionId });
   },
   setDomainState(domainState) {

@@ -19,11 +19,13 @@ interface ChatSdkResult {
 }
 
 function applyChatResult(result: ChatSdkResult) {
+  // SDK 返回的是完整会话快照，business 层只把快照拆分同步到对应 store。
   useSessionStore.getState().setSessions(result.sessions);
   useSessionStore.getState().setDomainState(result.sessionState);
   useSessionStore.getState().setCurrentSessionId(result.sessionState.currentSessionId ?? null);
 
   if (result.currentDetail) {
+    // currentDetail 为空表示 SDK 判定当前无可展示消息，避免误清其他页面缓存。
     useChatStore.getState().setMessages(result.currentDetail.messages);
   }
   useChatStore.getState().setDomainState(result.chatState);
@@ -41,6 +43,7 @@ export const qaChatService = {
   },
   async getEvidence(messageId: number): Promise<EvidenceDetail> {
     const detail = await getEvidenceWithSdk(messageId);
+    // 依据详情按消息维度写入缓存，页面重复展开时可直接复用。
     useEvidenceStore.getState().setDetail(detail);
     return detail;
   },

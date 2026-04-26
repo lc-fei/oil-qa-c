@@ -16,9 +16,11 @@ export function LoginPage() {
     setErrorMessage('');
 
     try {
+      // 登录成功后由 authService 同步 SDK 认证态，页面只负责跳转到业务入口。
       await authService.login(values);
       navigate(routes.chat, { replace: true });
     } catch (error) {
+      // 登录失败保留表单内容，只展示错误信息，方便用户修正账号或密码。
       setErrorMessage(error instanceof Error ? error.message : '登录失败，请稍后重试');
     } finally {
       setSubmitting(false);

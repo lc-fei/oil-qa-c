@@ -29,13 +29,19 @@ pub struct StorageInvokeRequest {
 }
 
 fn map_js_error(prefix: &str, error: JsValue) -> SdkError {
+    // JS 侧抛出的错误未必是字符串，这里统一转换成 SDK 错误结构。
     let message = error
         .as_string()
         .unwrap_or_else(|| format!("{prefix}失败，且错误对象不可直接转为字符串"));
     SdkError::new("SDK_PLATFORM_ERROR", format!("{prefix}: {message}"))
 }
 
-async fn call_registered_handler(handler: &Function, payload: JsValue, action_name: &str) -> SdkResult<JsValue> {
+async fn call_registered_handler(
+    handler: &Function,
+    payload: JsValue,
+    action_name: &str,
+) -> SdkResult<JsValue> {
+    // transport/storage 都以 Promise 形式注册，Rust 侧通过 JsFuture 等待异步结果。
     let result = handler
         .call1(&JsValue::NULL, &payload)
         .map_err(|error| map_js_error(action_name, error))?;
@@ -74,16 +80,26 @@ where
     let handler = TRANSPORT_HANDLER
         .with(|slot| slot.borrow().clone())
         .ok_or_else(|| SdkError::new("SDK_TRANSPORT_MISSING", "尚未注册平台 transport"))?;
+    // method + payload 是 SDK 与客户端 transport 的稳定契约，具体 HTTP 细节由平台实现。
     let request = serde_wasm_bindgen::to_value(&TransportInvokeRequest {
         method: method.to_string(),
         payload,
         auth_token,
     })
-    .map_err(|error| SdkError::new("SDK_TRANSPORT_SERIALIZE_ERROR", format!("transport 请求序列化失败: {error}")))?;
+    .map_err(|error| {
+        SdkError::new(
+            "SDK_TRANSPORT_SERIALIZE_ERROR",
+            format!("transport 请求序列化失败: {error}"),
+        )
+    })?;
     let response = call_registered_handler(&handler, request, "transport 调用").await?;
 
-    serde_wasm_bindgen::from_value(response)
-        .map_err(|error| SdkError::new("SDK_TRANSPORT_PARSE_ERROR", format!("transport 响应解析失败: {error}")))
+    serde_wasm_bindgen::from_value(response).map_err(|error| {
+        SdkError::new(
+            "SDK_TRANSPORT_PARSE_ERROR",
+            format!("transport 响应解析失败: {error}"),
+        )
+    })
 }
 
 /// storage 抽象统一以 key-value 形式暴露，后续可平滑映射到浏览器、本地数据库或移动端存储。
@@ -91,23 +107,32 @@ pub async fn storage_get(key: &str) -> SdkResult<Option<String>> {
     let handler = STORAGE_HANDLER
         .with(|slot| slot.borrow().clone())
         .ok_or_else(|| SdkError::new("SDK_STORAGE_MISSING", "尚未注册平台 storage"))?;
+    // storage 读写也走平台注册函数，便于 Web localStorage 与移动端安全存储统一接入。
     let payload = serde_wasm_bindgen::to_value(&StorageInvokeRequest {
         action: "get".to_string(),
         key: key.to_string(),
         value: None,
     })
-    .map_err(|error| SdkError::new("SDK_STORAGE_SERIALIZE_ERROR", format!("storage get 请求序列化失败: {error}")))?;
+    .map_err(|error| {
+        SdkError::new(
+            "SDK_STORAGE_SERIALIZE_ERROR",
+            format!("storage get 请求序列化失败: {error}"),
+        )
+    })?;
     let response = call_registered_handler(&handler, payload, "storage get").await?;
 
     if response.is_null() || response.is_undefined() {
+        // 空响应表示当前平台没有对应 key，SDK 继续按匿名态或默认态处理。
         return Ok(None);
     }
 
     if let Some(text) = response.as_string() {
+        // 简单字符串是当前 Web token storage 的主要返回形态。
         return Ok(Some(text));
     }
 
     if Reflect::has(&response, &JsValue::from_str("value")).unwrap_or(false) {
+        // 保留对象包装格式，方便后续平台返回 { value } 一类结构。
         let value = Reflect::get(&response, &JsValue::from_str("value"))
             .map_err(|error| map_js_error("storage value 读取", error))?;
         return Ok(value.as_string());
@@ -128,7 +153,12 @@ pub async fn storage_set(key: &str, value: &str) -> SdkResult<()> {
         key: key.to_string(),
         value: Some(value.to_string()),
     })
-    .map_err(|error| SdkError::new("SDK_STORAGE_SERIALIZE_ERROR", format!("storage set 请求序列化失败: {error}")))?;
+    .map_err(|error| {
+        SdkError::new(
+            "SDK_STORAGE_SERIALIZE_ERROR",
+            format!("storage set 请求序列化失败: {error}"),
+        )
+    })?;
 
     let _ = call_registered_handler(&handler, payload, "storage set").await?;
     Ok(())
@@ -143,7 +173,12 @@ pub async fn storage_remove(key: &str) -> SdkResult<()> {
         key: key.to_string(),
         value: None,
     })
-    .map_err(|error| SdkError::new("SDK_STORAGE_SERIALIZE_ERROR", format!("storage remove 请求序列化失败: {error}")))?;
+    .map_err(|error| {
+        SdkError::new(
+            "SDK_STORAGE_SERIALIZE_ERROR",
+            format!("storage remove 请求序列化失败: {error}"),
+        )
+    })?;
 
     let _ = call_registered_handler(&handler, payload, "storage remove").await?;
     Ok(())

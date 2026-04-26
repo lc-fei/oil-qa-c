@@ -26,6 +26,7 @@ function formatDayLabel(dateText: string) {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const compare = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+  // 只按自然日分组，不使用精确小时差，避免午夜前后的会话被误分组。
   const diffDays = Math.floor((today.getTime() - compare.getTime()) / 86_400_000);
 
   if (diffDays <= 0) {
@@ -44,6 +45,7 @@ function formatDayLabel(dateText: string) {
 }
 
 function groupSessionsByDate(sessions: QaSessionSummary[]): SessionGroup[] {
+  // 左侧历史会话按更新时间倒序展示，再映射到固定分组顺序。
   const grouped = [...sessions]
     .sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime())
     .reduce<Record<string, QaSessionSummary[]>>((accumulator, session) => {
@@ -68,6 +70,7 @@ function formatSessionMeta(session: QaSessionSummary) {
     minute: '2-digit',
   });
   const prefix = formatDayLabel(session.updatedAt) === '今天' ? `今天 ${timeText}` : formatDayLabel(session.updatedAt);
+  // 会话列表只展示消息收藏提示，不提供会话级收藏能力。
   const favoriteText = session.isFavorite ? '含收藏消息' : '图谱增强问答';
   return `${prefix} · ${favoriteText} · ${session.messageCount} 条消息`;
 }
@@ -151,7 +154,8 @@ export function ChatPage() {
       setSessionErrorMessage('');
 
       try {
-      await qaSessionService.bootstrap({ pageNum: 1, pageSize: 20 });
+        // 会话首屏由 SDK 拉取列表与默认详情，页面只负责显示加载和错误状态。
+        await qaSessionService.bootstrap({ pageNum: 1, pageSize: 20 });
       } catch (error) {
         setSessionErrorMessage(error instanceof Error ? error.message : '会话接口加载失败');
       } finally {
@@ -166,6 +170,7 @@ export function ChatPage() {
         const response = await recommendationService.list();
         setRecommendations(response.list?.length ? response.list : DEMO_RECOMMENDATIONS);
       } catch {
+        // 推荐问题不是主链路能力，接口异常时用本地兜底内容保证空状态可继续提问。
         setRecommendations(DEMO_RECOMMENDATIONS);
       } finally {
         setLoadingRecommendations(false);
@@ -195,6 +200,7 @@ export function ChatPage() {
   async function selectSession(sessionId: number) {
     try {
       setSessionErrorMessage('');
+      // 切换会话时关闭依据面板，避免右侧仍展示上一条消息的依据。
       await qaSessionService.select(sessionId);
       closeEvidencePanel();
     } catch (error) {
@@ -218,6 +224,7 @@ export function ChatPage() {
     const nextTitle = window.prompt('请输入新的会话标题', targetSession?.title ?? '');
 
     if (!nextTitle?.trim()) {
+      // 空标题不提交到后端，避免制造无意义的会话名。
       return;
     }
 
@@ -241,10 +248,12 @@ export function ChatPage() {
 
   function handleToggleEvidence(message: QaMessage) {
     if (currentEvidenceMessageId === message.messageId && evidenceOpen) {
+      // 再次点击当前消息的依据按钮时切换为关闭态。
       closeEvidencePanel();
       return;
     }
 
+    // 打开新依据前先清空旧详情，防止接口加载期间显示上一条回答的依据。
     openEvidencePanel(message.messageId);
     setEvidenceErrorMessage('');
     setLoadingEvidence(true);
@@ -267,6 +276,7 @@ export function ChatPage() {
     const question = composerValue.trim();
 
     if (!question || isSending) {
+      // 空问题和重复发送都会破坏问答状态机，因此在页面层提前拦截。
       return;
     }
 
@@ -274,6 +284,7 @@ export function ChatPage() {
     setSessionErrorMessage('');
 
     try {
+      // 发送问题交给 SDK 链路编排，成功后会同步更新会话、消息和领域状态。
       await qaChatService.sendQuestion({
         sessionId: currentSessionId ?? undefined,
         question,
@@ -293,6 +304,7 @@ export function ChatPage() {
 
     try {
       setSessionErrorMessage('');
+      // 收藏切换需要处理“已有 favoriteId”和“历史消息缺失映射”两种情况，统一放在 service。
       await favoriteService.toggleMessageFavorite(message.messageId);
     } catch (error) {
       setSessionErrorMessage(error instanceof Error ? error.message : '收藏操作失败');

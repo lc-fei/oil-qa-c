@@ -5,6 +5,7 @@ const TOKEN_STORAGE_KEY = 'oil-qa-c-token';
 function createWebTokenStorage(): TokenStorage {
   return {
     getToken() {
+      // Web 调试阶段使用 localStorage，后续 Electron 可替换为更安全的本地存储。
       return window.localStorage.getItem(TOKEN_STORAGE_KEY);
     },
     setToken(token) {
@@ -19,6 +20,7 @@ function createWebTokenStorage(): TokenStorage {
 export function createWebPlatformAdapter(): PlatformAdapter {
   return {
     getTokenStorage() {
+      // 每次返回轻量对象，实际读写仍指向同一个浏览器存储键。
       return createWebTokenStorage();
     },
     openExternalLink(url) {
@@ -33,6 +35,7 @@ export function createWebPlatformAdapter(): PlatformAdapter {
       anchor.click();
     },
     async copyToClipboard(text) {
+      // 剪贴板能力保留在平台层，避免 UI 组件直接绑定浏览器 API。
       await navigator.clipboard.writeText(text);
     },
     getRuntimeEnv() {

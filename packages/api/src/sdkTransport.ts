@@ -24,10 +24,12 @@ function normalizeSdkPayload<TValue>(value: TValue): TValue {
   }
 
   if (Array.isArray(value)) {
+    // 数组里的对象也可能来自 wasm Map，需要递归归一化后才能安全 JSON.stringify。
     return value.map((item) => normalizeSdkPayload(item)) as TValue;
   }
 
   if (value && typeof value === 'object') {
+    // 普通对象也递归处理，保护嵌套 payload 在跨 wasm 边界后仍是可序列化结构。
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>).map(([entryKey, entryValue]) => [
         entryKey,
@@ -48,6 +50,7 @@ function createScopedClient(authToken?: string | null) {
 
 export function createWebSdkTransport() {
   return async function invokeTransport(request: SdkTransportRequest) {
+    // SDK 只传 method + payload，Web transport 在这里完成具体 API 模块分发。
     const normalizedPayload = normalizeSdkPayload(request.payload);
     const client = createScopedClient(request.authToken);
     const authApi = createAuthApi(client);
@@ -59,6 +62,7 @@ export function createWebSdkTransport() {
 
     switch (request.method) {
       case 'auth.login':
+        // 登录是唯一不依赖已有 token 的接口，但仍通过同一个 transport 入口发起。
         return authApi.login(normalizedPayload as LoginRequest) as Promise<LoginResponse>;
       case 'auth.current_user':
         return authApi.getCurrentUser() as Promise<CurrentUser>;
@@ -75,6 +79,7 @@ export function createWebSdkTransport() {
         return sessionApi.create(normalizedPayload as Parameters<typeof sessionApi.create>[0]);
       case 'session.rename': {
         const payload = normalizedPayload as { sessionId: number; title: string };
+        // 后端更新标题无业务数据返回，transport 保持 null 结果供 SDK 继续刷新快照。
         await sessionApi.updateTitle(payload.sessionId, { title: payload.title });
         return null;
       }
@@ -99,6 +104,7 @@ export function createWebSdkTransport() {
       }
       case 'favorite.detail': {
         const payload = normalizedPayload as { favoriteId: number };
+        // 收藏详情按展开动作懒加载，避免收藏列表一次性返回完整回答内容。
         return favoriteApi.detail(payload.favoriteId);
       }
       case 'favorite.remove': {
@@ -114,6 +120,7 @@ export function createWebSdkTransport() {
         });
       }
       default:
+        // 未注册 method 直接失败，能尽早暴露 SDK 与 Web transport 的契约漂移。
         throw new Error(`未支持的 SDK transport 方法: ${request.method}`);
     }
   };

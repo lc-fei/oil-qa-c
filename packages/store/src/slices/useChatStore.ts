@@ -31,6 +31,7 @@ export const useChatStore = create<ChatState>((set) => ({
     }));
   },
   updateMessageFavorite(messageId, favorite) {
+    // 收藏状态会从聊天页和收藏页同时改变，这里按 messageId 做局部更新。
     set((state) => ({
       messages: state.messages.map((message) =>
         message.messageId === messageId
@@ -43,6 +44,7 @@ export const useChatStore = create<ChatState>((set) => ({
     }));
   },
   setSending(isSending) {
+    // 发送中状态属于 UI 交互锁，防止用户重复提交同一个问题。
     set({ isSending });
   },
   setDomainState(domainState) {

@@ -8,6 +8,7 @@ interface PageContainerProps extends PropsWithChildren {
 
 export function PageContainer({ title, subtitle, children }: PageContainerProps) {
   return (
+    // 共享页面容器只提供通用标题区和内容边距，具体业务布局仍由页面自行控制。
     <Layout style={{ minHeight: '100vh', background: 'transparent' }}>
       <Layout.Content style={{ padding: '32px 40px' }}>
         <Space direction="vertical" size="large" style={{ width: '100%' }}>

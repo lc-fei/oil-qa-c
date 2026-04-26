@@ -53,20 +53,24 @@ function createWebStorageBridge() {
     }
 
     if (request.action === 'get') {
+      // 登录恢复由 SDK 主导，storage bridge 只负责提供当前平台的持久化 token。
       return tokenStorage.getToken();
     }
 
     if (request.action === 'set') {
+      // SDK 登录成功后写入 token，Web 端负责落到浏览器存储。
       tokenStorage.setToken(request.value ?? '');
       return null;
     }
 
+    // remove 用于退出登录或认证过期，清理后路由守卫会回到登录页。
     tokenStorage.clearToken();
     return null;
   };
 }
 
 async function loadGeneratedModule() {
+  // wasm 模块只加载一次，避免重复初始化导致 transport/storage 注册被覆盖。
   if (generatedModule) {
     return generatedModule;
   }
@@ -88,6 +92,7 @@ export async function initWasmSdk(options: InitWasmSdkOptions) {
   const module = await loadGeneratedModule();
   const transportBridge = createWebSdkTransport();
   await module.default();
+  // Web 端启动时注册平台能力，后续所有业务调用都从 sdk_invoke 进入 Rust SDK。
   module.register_transport(async (rawRequest) => transportBridge(rawRequest as never));
   module.register_storage(createWebStorageBridge());
   const status = await module.sdk_invoke('system.status', {});
@@ -105,6 +110,7 @@ export function isWasmSdkReady() {
 }
 
 async function getWasmModule() {
+  // 业务调用必须发生在 initWasmSdk 之后，否则无法保证 transport/storage 已注册。
   if (!generatedModule) {
     throw new Error('WASM SDK 尚未初始化，请先完成 initWasmSdk');
   }
@@ -184,6 +190,7 @@ export async function syncDomainStatesFromSession(detail: QaSessionDetail) {
 }
 
 export async function bootstrapSessionsWithSdk(options: { keyword?: string; pageNum?: number; pageSize?: number } = {}) {
+  // 会话初始化由 SDK 同时返回列表、当前详情和领域状态，减少页面侧自行拼状态。
   return invokeSdk<SessionSdkResult>('session.bootstrap', options);
 }
 
@@ -225,6 +232,7 @@ export async function listFavoritesWithSdk(options: {
   pageNum?: number;
   pageSize?: number;
 } = {}) {
+  // 收藏列表只取概览，详情由 getFavoriteDetailWithSdk 在展开 Collapse 时懒加载。
   return invokeSdk<PaginatedResult<FavoriteItemSummary>>('favorite.list', options);
 }
 

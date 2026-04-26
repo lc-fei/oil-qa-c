@@ -26,6 +26,7 @@ export function AppProviders({ children }: PropsWithChildren) {
       } catch (error) {
         console.error('restore session failed', error);
 
+        // 初始化失败不能让整站卡死，页面进入 ready 后由登录态决定跳转。
         if (!cancelled) {
           setStatus('ready');
         }
@@ -35,6 +36,7 @@ export function AppProviders({ children }: PropsWithChildren) {
     void bootstrapAuth();
 
     return () => {
+      // React 严格模式会触发 effect 清理，避免过期异步回写全局启动状态。
       cancelled = true;
     };
   }, [setStatus]);

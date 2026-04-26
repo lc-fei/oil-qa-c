@@ -310,6 +310,7 @@ fn build_event(event_type: &str, payload: serde_json::Value) -> DomainEvent {
 }
 
 fn set_session_sdk_result(result: SessionSdkResult) -> SessionSdkResult {
+    // SDK 内部缓存最近一次会话结果，后续重命名、删除、发送问题都基于该快照增量更新。
     SESSION_LIST_CACHE.with(|cache| {
         cache.replace(result.sessions.clone());
     });
@@ -331,6 +332,7 @@ fn cached_sessions() -> Vec<QaSessionSummary> {
 
 pub fn get_session_snapshot() -> SessionSdkResult {
     let sessions = cached_sessions();
+    // 快照缺失时重新从当前缓存推导默认领域状态，保证调用方始终拿到完整结构。
     let session_state = SESSION_STATE_CACHE
         .with(|cache| cache.borrow().clone())
         .unwrap_or_else(|| create_session_domain_state(&sessions, None, "SessionSwitched"));
@@ -347,9 +349,13 @@ pub fn get_session_snapshot() -> SessionSdkResult {
     }
 }
 
-fn create_summary_from_detail(detail: &QaSessionDetail, previous_summary: Option<&QaSessionSummary>) -> QaSessionSummary {
+fn create_summary_from_detail(
+    detail: &QaSessionDetail,
+    previous_summary: Option<&QaSessionSummary>,
+) -> QaSessionSummary {
     let last_message = detail.messages.last();
 
+    // 详情接口只返回消息列表时，摘要字段优先从最后一条消息推导，缺失再沿用旧摘要。
     QaSessionSummary {
         session_id: detail.session_id,
         session_no: detail.session_no.clone(),
@@ -386,15 +392,23 @@ fn create_message_from_chat_response(response: &SendQuestionResponse) -> QaMessa
     }
 }
 
-fn build_sdk_result(sessions: Vec<QaSessionSummary>, current_detail: Option<QaSessionDetail>) -> SessionSdkResult {
+fn build_sdk_result(
+    sessions: Vec<QaSessionSummary>,
+    current_detail: Option<QaSessionDetail>,
+) -> SessionSdkResult {
     let current_session_id = current_detail.as_ref().map(|detail| detail.session_id);
+    // 会话详情存在时同步消息领域状态，详情为空时返回空消息态。
     let synced_chat_state = current_detail
         .as_ref()
         .map(|detail| sync_domain_states_from_session(detail).chat_state)
         .unwrap_or_else(|| create_chat_domain_state(&[], "MessageCompleted"));
 
     SessionSdkResult {
-        session_state: create_session_domain_state(&sessions, current_session_id, "SessionSwitched"),
+        session_state: create_session_domain_state(
+            &sessions,
+            current_session_id,
+            "SessionSwitched",
+        ),
         chat_state: synced_chat_state,
         sessions,
         current_detail,
@@ -406,8 +420,10 @@ pub fn generate_session_title(question: &str) -> String {
     let trimmed = question.trim();
 
     if trimmed.is_empty() {
+        // 空问题只会出现在新建空会话场景，标题统一回退为“新对话”。
         "新对话".to_string()
     } else {
+        // 首轮标题截取前 20 个字符，避免左侧会话列表被长问题撑开。
         trimmed.chars().take(20).collect()
     }
 }
@@ -434,7 +450,11 @@ pub fn create_session_domain_state(
 
 /// 历史消息列表转换为消息领域状态时，统一由 SDK 判断当前是否仍在生成。
 pub fn create_chat_domain_state(messages: &[QaMessage], event_type: &str) -> ChatDomainState {
-    let active_message = messages.iter().rev().find(|message| message.status == "PROCESSING");
+    // 最新的 PROCESSING 消息被视为当前活跃消息，供后续流式状态机继续推进。
+    let active_message = messages
+        .iter()
+        .rev()
+        .find(|message| message.status == "PROCESSING");
 
     ChatDomainState {
         active_message_id: active_message.map(|message| message.message_id),
@@ -465,13 +485,13 @@ pub fn sync_domain_states_from_session(detail: &QaSessionDetail) -> SyncedDomain
             &[QaSessionSummary {
                 session_id: detail.session_id,
                 session_no: detail.session_no.clone(),
-            title: detail.title.clone(),
-            last_question: detail
-                .messages
-                .last()
-                .map(|message| message.question.clone())
-                .unwrap_or_default(),
-            message_count: detail.messages.len(),
+                title: detail.title.clone(),
+                last_question: detail
+                    .messages
+                    .last()
+                    .map(|message| message.question.clone())
+                    .unwrap_or_default(),
+                message_count: detail.messages.len(),
                 updated_at: detail
                     .messages
                     .last()
@@ -487,13 +507,17 @@ pub fn sync_domain_states_from_session(detail: &QaSessionDetail) -> SyncedDomain
 }
 
 /// chunk 合并规则属于典型的跨端核心逻辑，应由 SDK 独立维护。
-pub fn apply_message_chunk(state: &ChatDomainState, chunk: &MessageChunk) -> MessageChunkApplyResult {
+pub fn apply_message_chunk(
+    state: &ChatDomainState,
+    chunk: &MessageChunk,
+) -> MessageChunkApplyResult {
     let previous_text = state
         .stream_buffer
         .get(&chunk.message_id)
         .cloned()
         .unwrap_or_default();
     let next_answer = format!("{previous_text}{}", chunk.delta);
+    // chunk 的错误、完成、进行中三种状态决定消息领域状态机的下一步。
     let next_status = if chunk.error_message.is_some() {
         MessageLifecycleStatus::Failed
     } else if chunk.done {
@@ -504,6 +528,7 @@ pub fn apply_message_chunk(state: &ChatDomainState, chunk: &MessageChunk) -> Mes
 
     let mut next_message_ids = state.message_ids.clone();
     if !next_message_ids.contains(&chunk.message_id) {
+        // 第一个 chunk 到达时把消息 ID 纳入序列，后续 chunk 只更新 buffer。
         next_message_ids.push(chunk.message_id);
     }
 
@@ -541,6 +566,7 @@ pub fn apply_message_chunk(state: &ChatDomainState, chunk: &MessageChunk) -> Mes
 
 /// 会话列表的拉取和初始选中逻辑统一放在 SDK，客户端只消费最终快照。
 pub async fn bootstrap_sessions(query: SessionListQuery) -> SdkResult<SessionSdkResult> {
+    // 初始化先拉会话列表，再尝试拉首个会话详情，保证首页进入时有可展示上下文。
     let response: PaginatedResult<QaSessionSummary> = invoke_transport(
         "session.list",
         serde_json::to_value(query).expect("session list payload serialize"),
@@ -549,6 +575,7 @@ pub async fn bootstrap_sessions(query: SessionListQuery) -> SdkResult<SessionSdk
     .await?;
 
     if response.list.is_empty() {
+        // 没有历史会话时返回空快照，页面进入空状态。
         return Ok(set_session_sdk_result(build_sdk_result(Vec::new(), None)));
     }
 
@@ -579,11 +606,20 @@ pub async fn bootstrap_sessions(query: SessionListQuery) -> SdkResult<SessionSdk
         })
         .collect();
 
-    Ok(set_session_sdk_result(build_sdk_result(next_sessions, Some(current_detail))))
+    Ok(set_session_sdk_result(build_sdk_result(
+        next_sessions,
+        Some(current_detail),
+    )))
 }
 
 pub async fn select_session(session_id: u64) -> SdkResult<SessionSdkResult> {
-    let detail: QaSessionDetail = invoke_transport("session.detail", serde_json::json!({ "sessionId": session_id }), None).await?;
+    // 切换会话以详情接口为准，避免只依赖列表摘要导致消息区不完整。
+    let detail: QaSessionDetail = invoke_transport(
+        "session.detail",
+        serde_json::json!({ "sessionId": session_id }),
+        None,
+    )
+    .await?;
     let current_sessions = cached_sessions();
     let mut matched = false;
     let mut next_sessions: Vec<QaSessionSummary> = current_sessions
@@ -599,13 +635,18 @@ pub async fn select_session(session_id: u64) -> SdkResult<SessionSdkResult> {
         .collect();
 
     if !matched {
+        // 从收藏页或外部入口跳转时，目标会话可能不在当前列表缓存里，需要补到列表顶部。
         next_sessions.insert(0, create_summary_from_detail(&detail, None));
     }
 
-    Ok(set_session_sdk_result(build_sdk_result(next_sessions, Some(detail))))
+    Ok(set_session_sdk_result(build_sdk_result(
+        next_sessions,
+        Some(detail),
+    )))
 }
 
 pub async fn create_session(payload: CreateSessionPayload) -> SdkResult<SessionSdkResult> {
+    // 新建接口只返回最小会话信息，SDK 负责补出空详情和列表摘要。
     let created: SessionCreateResult = invoke_transport(
         "session.create",
         serde_json::to_value(payload).expect("session create payload serialize"),
@@ -637,10 +678,14 @@ pub async fn create_session(payload: CreateSessionPayload) -> SdkResult<SessionS
         },
     );
 
-    Ok(set_session_sdk_result(build_sdk_result(next_sessions, Some(detail))))
+    Ok(set_session_sdk_result(build_sdk_result(
+        next_sessions,
+        Some(detail),
+    )))
 }
 
 pub async fn rename_session(payload: RenameSessionPayload) -> SdkResult<SessionSdkResult> {
+    // 后端标题更新成功后，SDK 本地同步列表和当前详情，避免再发一次详情请求。
     let _: serde_json::Value = invoke_transport(
         "session.rename",
         serde_json::json!({
@@ -677,17 +722,27 @@ pub async fn rename_session(payload: RenameSessionPayload) -> SdkResult<SessionS
         }
     });
 
-    Ok(set_session_sdk_result(build_sdk_result(next_sessions, next_detail)))
+    Ok(set_session_sdk_result(build_sdk_result(
+        next_sessions,
+        next_detail,
+    )))
 }
 
 pub async fn delete_session(session_id: u64) -> SdkResult<SessionSdkResult> {
-    let _: serde_json::Value = invoke_transport("session.delete", serde_json::json!({ "sessionId": session_id }), None).await?;
+    // 删除后从缓存列表移除目标会话，再选择剩余列表的第一条作为回退会话。
+    let _: serde_json::Value = invoke_transport(
+        "session.delete",
+        serde_json::json!({ "sessionId": session_id }),
+        None,
+    )
+    .await?;
     let next_sessions = cached_sessions()
         .into_iter()
         .filter(|session| session.session_id != session_id)
         .collect::<Vec<_>>();
 
     if next_sessions.is_empty() {
+        // 删除最后一个会话时进入空态，不继续请求详情。
         return Ok(set_session_sdk_result(build_sdk_result(Vec::new(), None)));
     }
 
@@ -709,7 +764,10 @@ pub async fn delete_session(session_id: u64) -> SdkResult<SessionSdkResult> {
         })
         .collect();
 
-    Ok(set_session_sdk_result(build_sdk_result(merged_sessions, Some(detail))))
+    Ok(set_session_sdk_result(build_sdk_result(
+        merged_sessions,
+        Some(detail),
+    )))
 }
 
 /// 推荐问题也通过 SDK 统一对外暴露，避免页面层继续感知独立 HTTP 接口。
@@ -719,6 +777,7 @@ pub async fn list_recommendations() -> SdkResult<RecommendationListResult> {
 
 /// 问答发送由 SDK 统一编排，客户端只负责传入问题与消费最终会话/消息快照。
 pub async fn send_question(payload: SendQuestionPayload) -> SdkResult<SessionSdkResult> {
+    // chat 接口返回单轮问答结果，SDK 负责合并到当前会话详情和左侧会话列表。
     let response: SendQuestionResponse = invoke_transport(
         "chat.send",
         serde_json::to_value(payload).expect("chat send payload serialize"),
@@ -736,7 +795,10 @@ pub async fn send_question(payload: SendQuestionPayload) -> SdkResult<SessionSdk
         .map(|session| session.title.clone())
         .filter(|title| !title.trim().is_empty())
         .unwrap_or_else(|| generate_session_title(&response.question));
-    let mut next_detail = if let Some(detail) = current_detail.filter(|detail| detail.session_id == response.session_id) {
+    // 如果当前缓存已经是该会话，就追加或替换对应消息；否则创建新的会话详情。
+    let mut next_detail = if let Some(detail) =
+        current_detail.filter(|detail| detail.session_id == response.session_id)
+    {
         let mut messages = detail.messages;
         if let Some(message_index) = messages
             .iter()
@@ -762,6 +824,7 @@ pub async fn send_question(payload: SendQuestionPayload) -> SdkResult<SessionSdk
         }
     };
     if next_detail.title.trim().is_empty() {
+        // 后端返回空标题时由 SDK 使用首问生成标题，保证列表可读。
         next_detail.title = next_title.clone();
     }
 
@@ -772,14 +835,25 @@ pub async fn send_question(payload: SendQuestionPayload) -> SdkResult<SessionSdk
     {
         next_sessions.remove(summary_index);
     }
-    next_sessions.insert(0, create_summary_from_detail(&next_detail, existing_summary.as_ref()));
+    next_sessions.insert(
+        0,
+        create_summary_from_detail(&next_detail, existing_summary.as_ref()),
+    );
 
-    Ok(set_session_sdk_result(build_sdk_result(next_sessions, Some(next_detail))))
+    Ok(set_session_sdk_result(build_sdk_result(
+        next_sessions,
+        Some(next_detail),
+    )))
 }
 
 /// 依据查询网关同样走 SDK，便于后续多端统一沿用同一调用语义。
 pub async fn get_evidence(message_id: u64) -> SdkResult<EvidenceDetail> {
-    invoke_transport("chat.evidence", serde_json::json!({ "messageId": message_id }), None).await
+    invoke_transport(
+        "chat.evidence",
+        serde_json::json!({ "messageId": message_id }),
+        None,
+    )
+    .await
 }
 
 /// 问答域模块负责标准化会话、消息和状态机规则，不承担请求传输逻辑。

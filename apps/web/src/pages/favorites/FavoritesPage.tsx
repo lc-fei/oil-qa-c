@@ -24,6 +24,7 @@ export function FavoritesPage() {
     setErrorMessage('');
 
     try {
+      // 收藏列表只拉概览字段，完整问答内容在用户展开时再按 favoriteId 查询。
       await favoriteService.list({
         keyword: nextKeyword.trim() || undefined,
         favoriteType: 'MESSAGE',
@@ -48,6 +49,7 @@ export function FavoritesPage() {
     setErrorMessage('');
 
     try {
+      // 取消收藏后重新拉列表，确保分页总数和当前行状态都与后端一致。
       await favoriteService.cancelFavorite(favoriteId, messageId);
       await loadFavorites(keyword);
     } catch (error) {
@@ -73,16 +75,19 @@ export function FavoritesPage() {
   }
 
   async function handleCollapseChange(keys: string | string[]) {
+    // Ant Design Collapse 同时支持单 key 和 key 数组，这里统一转成字符串数组保存。
     const nextKeys = Array.isArray(keys) ? keys.map(String) : [String(keys)];
     const newlyOpenedKey = nextKeys.find((key) => !activeKeys.includes(key));
     setActiveKeys(nextKeys);
 
     if (!newlyOpenedKey) {
+      // 收起面板时不需要请求详情。
       return;
     }
 
     const targetFavoriteId = Number(newlyOpenedKey);
     if (!targetFavoriteId || detailByFavoriteId[targetFavoriteId]) {
+      // 已加载过的详情走 store 缓存，避免重复展开产生重复请求。
       return;
     }
 

@@ -91,6 +91,7 @@ export function AnswerRenderer({ content, className, compact = false }: AnswerRe
         remarkPlugins={[remarkGfm, remarkBreaks]}
         rehypePlugins={[rehypeSanitize]}
         components={{
+          // 统一覆写基础标签，保证主会话和收藏页的模型回答渲染风格一致。
           p({ children }: ComponentPropsWithoutRef<'p'>) {
             return <p style={mergeStyle(styles.paragraph, compact)}>{children}</p>;
           },
@@ -115,6 +116,7 @@ export function AnswerRenderer({ content, className, compact = false }: AnswerRe
           code({ children, className: codeClassName }: ComponentPropsWithoutRef<'code'>) {
             const isBlock = Boolean(codeClassName);
 
+            // react-markdown 通过 className 标识 fenced code，行内 code 走轻量样式。
             if (isBlock) {
               return <code style={styles.codeBlock}>{children}</code>;
             }
@@ -138,6 +140,7 @@ export function AnswerRenderer({ content, className, compact = false }: AnswerRe
             return <td style={styles.cell}>{children}</td>;
           },
           a({ children, href }: ComponentPropsWithoutRef<'a'>) {
+            // 外链统一新窗口打开，避免回答中的链接中断当前问答流程。
             return (
               <a href={href} target="_blank" rel="noreferrer" style={styles.link}>
                 {children}
