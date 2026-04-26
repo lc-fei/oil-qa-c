@@ -590,43 +590,60 @@ export function ChatPage() {
                     <span className="chat-chip">边数：{evidenceDetail.graphData.edges.length}</span>
                   </div>
                   <div className="chat-evidence-grid">
-                    {evidenceDetail.graphData.nodes.map((node) => (
-                      <div key={node.nodeId} className="chat-evidence-mini-card">
-                        <strong>{node.nodeName}</strong>
-                        <span>{node.nodeType}</span>
-                      </div>
-                    ))}
+                    {evidenceDetail.graphData.nodes.length > 0 ? (
+                      evidenceDetail.graphData.nodes.map((node) => (
+                        <div key={node.id} className="chat-evidence-mini-card">
+                          <strong>{node.name || node.entityName}</strong>
+                          <span>{node.entityType ?? node.typeName ?? '未分类'}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="chat-evidence-text">暂无图谱节点。</div>
+                    )}
                   </div>
                 </section>
 
                 <section className="chat-evidence-card">
                   <h3>命中实体</h3>
                   <div className="chat-chip-row">
-                    {evidenceDetail.entities.map((entity) => (
-                      <span key={entity.entityId} className="chat-chip">
-                        {entity.entityName} · {entity.entityType}
-                      </span>
-                    ))}
+                    {evidenceDetail.entities.length > 0 ? (
+                      evidenceDetail.entities.map((entity) => (
+                        <span key={entity.entityId} className="chat-chip">
+                          {entity.entityName} · {entity.entityType}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="chat-chip">未命中实体</span>
+                    )}
                   </div>
                 </section>
 
                 <section className="chat-evidence-card">
                   <h3>关系链</h3>
-                  {evidenceDetail.relations.map((relation) => (
-                    <div key={`${relation.sourceName}-${relation.targetName}`} className="chat-evidence-text">
-                      {relation.sourceName} {relation.relationType} {relation.targetName}
-                    </div>
-                  ))}
+                  {evidenceDetail.relations.length > 0 ? (
+                    evidenceDetail.relations.map((relation) => (
+                      <div key={`${relation.sourceName}-${relation.targetName}`} className="chat-evidence-text">
+                        {relation.sourceName} {relation.relationType} {relation.targetName}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="chat-evidence-text">未命中关系链。</div>
+                  )}
                 </section>
 
                 <section className="chat-evidence-card">
                   <h3>知识摘要</h3>
-                  {evidenceDetail.sources.map((source) => (
-                    <div key={`${source.sourceType}-${source.title}`} className="chat-evidence-source">
-                      <strong>{source.title}</strong>
-                      <span>{source.content}</span>
-                    </div>
-                  ))}
+                  {evidenceDetail.sources.length > 0 ? (
+                    evidenceDetail.sources.map((source) => (
+                      <div key={`${source.sourceType}-${source.title}`} className="chat-evidence-source">
+                        <strong>{source.title}</strong>
+                        {/* 依据内容可能包含换行和 Markdown 片段，统一交给富文本渲染器处理。 */}
+                        <AnswerRenderer content={source.content} compact />
+                      </div>
+                    ))
+                  ) : (
+                    <div className="chat-evidence-text">暂无依据卡片。</div>
+                  )}
                 </section>
 
                 <section className="chat-evidence-card">

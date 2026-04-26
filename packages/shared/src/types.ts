@@ -174,15 +174,28 @@ export interface EvidenceSource {
 }
 
 export interface EvidenceGraphNode {
-  nodeId: string;
-  nodeName: string;
-  nodeType: string;
+  id: string;
+  name: string;
+  typeCode: string | null;
+  typeName: string | null;
+  entityId: string;
+  entityName: string;
+  entityType: string | null;
+  properties: Record<string, unknown>;
 }
 
 export interface EvidenceGraphEdge {
+  id: string;
+  source: string;
+  target: string;
   sourceId: string;
   targetId: string;
+  sourceName: string;
+  targetName: string;
+  relationTypeCode: string | null;
+  relationTypeName: string | null;
   relationType: string;
+  description: string | null;
 }
 
 export interface EvidenceGraphData {

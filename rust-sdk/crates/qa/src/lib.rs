@@ -254,17 +254,30 @@ pub struct EvidenceSource {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EvidenceGraphNode {
-    pub node_id: String,
-    pub node_name: String,
-    pub node_type: String,
+    pub id: String,
+    pub name: String,
+    pub type_code: Option<String>,
+    pub type_name: Option<String>,
+    pub entity_id: String,
+    pub entity_name: String,
+    pub entity_type: Option<String>,
+    pub properties: serde_json::Value,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EvidenceGraphEdge {
+    pub id: String,
+    pub source: String,
+    pub target: String,
     pub source_id: String,
     pub target_id: String,
+    pub source_name: String,
+    pub target_name: String,
+    pub relation_type_code: Option<String>,
+    pub relation_type_name: Option<String>,
     pub relation_type: String,
+    pub description: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
