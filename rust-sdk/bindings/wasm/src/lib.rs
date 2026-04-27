@@ -142,6 +142,32 @@ pub async fn sdk_invoke(method: String, payload: JsValue) -> Result<JsValue, JsV
                 .map_err(|error| js_error(format!("chat.send 调用失败: {}", error.message)))?;
             to_value(&result).map_err(|error| js_error(format!("问答结果序列化失败: {error}")))
         }
+        "chat.stream.start" => {
+            let payload: qa::SendQuestionPayload = from_value(payload)
+                .map_err(|error| js_error(format!("chatStreamStartPayload 解析失败: {error}")))?;
+            let result = qa::start_stream(payload).await.map_err(|error| {
+                js_error(format!("chat.stream.start 调用失败: {}", error.message))
+            })?;
+            to_value(&result).map_err(|error| js_error(format!("流式开始结果序列化失败: {error}")))
+        }
+        "chat.stream.finish" => {
+            let payload: qa::StreamFinishPayload = from_value(payload)
+                .map_err(|error| js_error(format!("chatStreamFinishPayload 解析失败: {error}")))?;
+            to_value(&qa::finish_stream(payload))
+                .map_err(|error| js_error(format!("流式完成结果序列化失败: {error}")))
+        }
+        "chat.stream.fail" => {
+            let payload: qa::StreamFailPayload = from_value(payload)
+                .map_err(|error| js_error(format!("chatStreamFailPayload 解析失败: {error}")))?;
+            to_value(&qa::fail_stream(payload))
+                .map_err(|error| js_error(format!("流式失败结果序列化失败: {error}")))
+        }
+        "chat.stream.cancel" => {
+            let payload: qa::StreamCancelPayload = from_value(payload)
+                .map_err(|error| js_error(format!("chatStreamCancelPayload 解析失败: {error}")))?;
+            to_value(&qa::cancel_stream(payload))
+                .map_err(|error| js_error(format!("流式取消结果序列化失败: {error}")))
+        }
         "chat.evidence" => {
             let payload: ChatEvidencePayload = from_value(payload)
                 .map_err(|error| js_error(format!("chatEvidencePayload 解析失败: {error}")))?;

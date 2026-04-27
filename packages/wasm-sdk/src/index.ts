@@ -7,6 +7,10 @@ import type {
   FavoriteItemSummary,
   FeedbackType,
   MessageChunk,
+  StreamCancelPayload,
+  StreamFailPayload,
+  StreamFinishPayload,
+  StreamStartResult,
   AdminPaginatedResult,
   BatchExceptionHandleStatusPayload,
   BatchHandleStatusResult,
@@ -245,6 +249,22 @@ export async function listRecommendationsWithSdk() {
 
 export async function sendQuestionWithSdk(payload: SendQuestionPayload) {
   return invokeSdk<SessionSdkResult>('chat.send', payload);
+}
+
+export async function startQuestionStreamWithSdk(payload: SendQuestionPayload) {
+  return invokeSdk<{ stream: StreamStartResult; sessionResult: SessionSdkResult }>('chat.stream.start', payload);
+}
+
+export async function finishQuestionStreamWithSdk(payload: StreamFinishPayload) {
+  return invokeSdk<SessionSdkResult>('chat.stream.finish', payload);
+}
+
+export async function failQuestionStreamWithSdk(payload: StreamFailPayload) {
+  return invokeSdk<SessionSdkResult>('chat.stream.fail', payload);
+}
+
+export async function cancelQuestionStreamWithSdk(payload: StreamCancelPayload) {
+  return invokeSdk<SessionSdkResult>('chat.stream.cancel', payload);
 }
 
 export async function getEvidenceWithSdk(messageId: number) {

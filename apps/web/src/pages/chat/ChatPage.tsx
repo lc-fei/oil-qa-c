@@ -123,7 +123,8 @@ export function ChatPage() {
   const [favoriteActionMessageId, setFavoriteActionMessageId] = useState<number | null>(null);
 
   const groupedSessions = useMemo(() => groupSessionsByDate(sessions), [sessions]);
-  const hasConversation = Boolean(currentSessionId && messages.length);
+  // 首问流式开始时后端尚未返回真实 sessionId，但本地已有 PROCESSING 消息，应立即进入会话态。
+  const hasConversation = messages.length > 0;
   const layoutClassName = evidenceOpen && hasConversation ? 'chat-shell chat-shell--with-evidence' : 'chat-shell';
   const userDisplayName = currentUser?.nickname ?? currentUser?.username ?? '访客';
   const userRoleText = currentUser?.roles.join(' / ') || 'CLIENT_USER';
@@ -284,8 +285,8 @@ export function ChatPage() {
     setSessionErrorMessage('');
 
     try {
-      // 发送问题交给 SDK 链路编排，成功后会同步更新会话、消息和领域状态。
-      await qaChatService.sendQuestion({
+      // SSE 由客户端实时渲染，最终状态仍通过 SDK finish/fail/cancel 归并。
+      await qaChatService.sendQuestionStream({
         sessionId: currentSessionId ?? undefined,
         question,
         contextMode: 'ON',
@@ -297,6 +298,11 @@ export function ChatPage() {
     } finally {
       setSending(false);
     }
+  }
+
+  function handleCancelQuestion() {
+    // SSE 取消由客户端关闭连接触发，service 会进入 SDK cancel 节点归并部分回答。
+    qaChatService.cancelActiveStream();
   }
 
   async function handleToggleFavorite(message: QaMessage) {
@@ -564,12 +570,15 @@ export function ChatPage() {
                 <button
                   type="button"
                   className="chat-primary-button chat-send-button"
-                  disabled={isSending}
                   onClick={() => {
-                    void handleSubmitQuestion();
+                    if (isSending) {
+                      handleCancelQuestion();
+                    } else {
+                      void handleSubmitQuestion();
+                    }
                   }}
                 >
-                  {isSending ? '发送中...' : '发送问题'}
+                  {isSending ? '停止生成' : '发送问题'}
                 </button>
               </div>
             </div>

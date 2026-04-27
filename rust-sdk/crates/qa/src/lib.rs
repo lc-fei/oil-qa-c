@@ -74,6 +74,21 @@ pub struct SendQuestionPayload {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct StreamStartResult {
+    pub client_message_id: u64,
+    pub request_no: String,
+    pub session_id: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StreamStartSdkResult {
+    pub stream: StreamStartResult,
+    pub session_result: SessionSdkResult,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ChatTimings {
     pub total_duration_ms: i64,
     pub nlp_duration_ms: i64,
@@ -106,6 +121,28 @@ pub struct SendQuestionResponse {
     pub status: String,
     pub timings: ChatTimings,
     pub evidence_summary: EvidenceSummary,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StreamFinishPayload {
+    pub client_message_id: u64,
+    pub response: SendQuestionResponse,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StreamFailPayload {
+    pub client_message_id: u64,
+    pub error_message: String,
+    pub partial_answer: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StreamCancelPayload {
+    pub client_message_id: u64,
+    pub partial_answer: Option<String>,
 }
 
 /// 会话详情由客户端网络层获取后，交给 SDK 统一同步领域状态。
@@ -390,6 +427,37 @@ fn create_message_from_chat_response(response: &SendQuestionResponse) -> QaMessa
         favorite: false,
         feedback_type: None,
     }
+}
+
+fn create_processing_message(
+    payload: &SendQuestionPayload,
+    session_id: u64,
+) -> (StreamStartResult, QaMessage) {
+    let now = js_sys::Date::new_0();
+    let timestamp = now.get_time() as u64;
+    let client_message_id = timestamp;
+    let request_no = format!("CLIENT_REQ_{timestamp}");
+
+    (
+        StreamStartResult {
+            client_message_id,
+            request_no: request_no.clone(),
+            session_id,
+        },
+        QaMessage {
+            message_id: client_message_id,
+            message_no: format!("CLIENT_MSG_{timestamp}"),
+            request_no,
+            question: payload.question.clone(),
+            answer: String::new(),
+            answer_summary: String::new(),
+            status: "PROCESSING".to_string(),
+            created_at: now.to_iso_string().into(),
+            finished_at: None,
+            favorite: false,
+            feedback_type: None,
+        },
+    )
 }
 
 fn build_sdk_result(
@@ -844,6 +912,145 @@ pub async fn send_question(payload: SendQuestionPayload) -> SdkResult<SessionSdk
         next_sessions,
         Some(next_detail),
     )))
+}
+
+pub async fn start_stream(payload: SendQuestionPayload) -> SdkResult<StreamStartSdkResult> {
+    // 流式 start 只创建本地 PROCESSING 快照；真实 session/message 由后端 SSE start 事件创建。
+    let base_result = get_session_snapshot();
+    let session_id = payload.session_id.or_else(|| {
+        base_result
+            .current_detail
+            .as_ref()
+            .map(|detail| detail.session_id)
+            .filter(|session_id| *session_id != 0)
+    });
+    let local_session_id = session_id.unwrap_or_default();
+    let (stream, processing_message) = create_processing_message(&payload, local_session_id);
+    let mut detail = base_result.current_detail.unwrap_or(QaSessionDetail {
+        session_id: local_session_id,
+        session_no: String::new(),
+        title: generate_session_title(&payload.question),
+        messages: Vec::new(),
+    });
+    if detail.session_id != local_session_id {
+        detail = QaSessionDetail {
+            session_id: local_session_id,
+            session_no: String::new(),
+            title: generate_session_title(&payload.question),
+            messages: Vec::new(),
+        };
+    }
+    detail.messages.push(processing_message);
+
+    let mut next_sessions = base_result.sessions;
+    if let Some(index) = next_sessions
+        .iter()
+        .position(|session| session.session_id == local_session_id)
+    {
+        next_sessions.remove(index);
+    }
+    if local_session_id != 0 {
+        next_sessions.insert(0, create_summary_from_detail(&detail, None));
+    }
+
+    let session_result = if local_session_id == 0 {
+        let chat_state = create_chat_domain_state(&detail.messages, "MessageSubmitted");
+        set_session_sdk_result(SessionSdkResult {
+            sessions: next_sessions,
+            session_state: create_session_domain_state(&[], None, "MessageSubmitted"),
+            current_detail: Some(detail),
+            chat_state,
+        })
+    } else {
+        set_session_sdk_result(build_sdk_result(next_sessions, Some(detail)))
+    };
+    Ok(StreamStartSdkResult {
+        stream,
+        session_result,
+    })
+}
+
+pub fn finish_stream(payload: StreamFinishPayload) -> SessionSdkResult {
+    let response = payload.response;
+    let final_message = create_message_from_chat_response(&response);
+    let current_snapshot = get_session_snapshot();
+    let mut detail = current_snapshot.current_detail.unwrap_or(QaSessionDetail {
+        session_id: response.session_id,
+        session_no: response.session_no.clone(),
+        title: generate_session_title(&response.question),
+        messages: Vec::new(),
+    });
+
+    detail.session_id = response.session_id;
+    detail.session_no = response.session_no.clone();
+    if detail.title.trim().is_empty() {
+        detail.title = generate_session_title(&response.question);
+    }
+    detail.messages.retain(|message| {
+        message.message_id != payload.client_message_id && message.message_id != response.message_id
+    });
+    detail.messages.push(final_message);
+
+    let mut next_sessions = current_snapshot.sessions;
+    if let Some(index) = next_sessions
+        .iter()
+        .position(|session| session.session_id == response.session_id || session.session_id == 0)
+    {
+        next_sessions.remove(index);
+    }
+    next_sessions.insert(0, create_summary_from_detail(&detail, None));
+
+    set_session_sdk_result(build_sdk_result(next_sessions, Some(detail)))
+}
+
+pub fn fail_stream(payload: StreamFailPayload) -> SessionSdkResult {
+    complete_interrupted_stream(
+        payload.client_message_id,
+        payload.partial_answer.unwrap_or_default(),
+        "FAILED",
+    )
+}
+
+pub fn cancel_stream(payload: StreamCancelPayload) -> SessionSdkResult {
+    complete_interrupted_stream(
+        payload.client_message_id,
+        payload.partial_answer.unwrap_or_default(),
+        "INTERRUPTED",
+    )
+}
+
+fn complete_interrupted_stream(
+    client_message_id: u64,
+    partial_answer: String,
+    status: &str,
+) -> SessionSdkResult {
+    let current_snapshot = get_session_snapshot();
+    let mut detail = match current_snapshot.current_detail {
+        Some(detail) => detail,
+        None => return current_snapshot,
+    };
+
+    if let Some(message) = detail
+        .messages
+        .iter_mut()
+        .find(|message| message.message_id == client_message_id)
+    {
+        message.answer = partial_answer;
+        message.answer_summary = message.answer.chars().take(120).collect();
+        message.status = status.to_string();
+        message.finished_at = Some(js_sys::Date::new_0().to_iso_string().into());
+    }
+
+    let mut next_sessions = current_snapshot.sessions;
+    if let Some(index) = next_sessions
+        .iter()
+        .position(|session| session.session_id == detail.session_id)
+    {
+        next_sessions.remove(index);
+    }
+    next_sessions.insert(0, create_summary_from_detail(&detail, None));
+
+    set_session_sdk_result(build_sdk_result(next_sessions, Some(detail)))
 }
 
 /// 依据查询网关同样走 SDK，便于后续多端统一沿用同一调用语义。

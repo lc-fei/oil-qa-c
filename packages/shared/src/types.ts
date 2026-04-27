@@ -58,7 +58,7 @@ export interface QaMessage {
   question: string;
   answer: string;
   answerSummary: string;
-  status: 'PROCESSING' | 'SUCCESS' | 'FAILED';
+  status: 'PROCESSING' | 'SUCCESS' | 'FAILED' | 'INTERRUPTED' | 'PARTIAL_SUCCESS';
   createdAt: string;
   finishedAt?: string;
   favorite: boolean;
@@ -97,20 +97,45 @@ export interface SendQuestionResponse {
   question: string;
   answer: string;
   answerSummary: string;
-  status: 'SUCCESS' | 'FAILED';
+  status: 'SUCCESS' | 'FAILED' | 'PARTIAL_SUCCESS' | 'INTERRUPTED';
   followUps: string[];
   timings: ChatTimings;
   evidenceSummary: EvidenceSummary;
 }
 
-// 流式分片模型预留给后续 SSE/WebSocket 场景，当前同步问答也复用消息状态机。
+// 流式分片模型由前端实时消费，最终结果仍交由 SDK 归并为权威消息状态。
 export interface MessageChunk {
   messageId: number;
+  messageNo?: string;
+  sessionId?: number;
+  sessionNo?: string;
   requestNo: string;
   delta: string;
   done: boolean;
   sequence: number;
-  errorMessage?: string;
+  errorMessage?: string | null;
+}
+
+export interface StreamStartResult {
+  clientMessageId: number;
+  requestNo: string;
+  sessionId: number;
+}
+
+export interface StreamFinishPayload {
+  clientMessageId: number;
+  response: SendQuestionResponse;
+}
+
+export interface StreamFailPayload {
+  clientMessageId: number;
+  errorMessage: string;
+  partialAnswer?: string;
+}
+
+export interface StreamCancelPayload {
+  clientMessageId: number;
+  partialAnswer?: string;
 }
 
 // 会话列表使用轻量摘要，消息正文统一由会话详情接口提供。
