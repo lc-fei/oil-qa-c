@@ -57,12 +57,15 @@ export interface QaMessage {
   requestNo: string;
   question: string;
   answer: string;
-  answerSummary: string;
   status: 'PROCESSING' | 'SUCCESS' | 'FAILED' | 'INTERRUPTED' | 'PARTIAL_SUCCESS';
+  partialAnswer?: string | null;
+  streamSequence?: number;
+  interruptedReason?: string | null;
   createdAt: string;
   finishedAt?: string;
   favorite: boolean;
   feedbackType: 'LIKE' | 'DISLIKE' | null;
+  workflow?: QaWorkflow | null;
 }
 
 // 发送问题由 SDK 统一发起，Web 层只提供用户输入和当前会话上下文。
@@ -96,11 +99,39 @@ export interface SendQuestionResponse {
   requestNo: string;
   question: string;
   answer: string;
-  answerSummary: string;
   status: 'SUCCESS' | 'FAILED' | 'PARTIAL_SUCCESS' | 'INTERRUPTED';
   followUps: string[];
   timings: ChatTimings;
   evidenceSummary: EvidenceSummary;
+  workflow?: QaWorkflow | null;
+}
+
+export interface QaWorkflowStage {
+  stageCode: string;
+  stageName: string;
+  status: 'PROCESSING' | 'SUCCESS' | 'FAILED';
+  durationMs?: number | null;
+  summary?: string | null;
+  errorMessage?: string | null;
+}
+
+export interface QaToolCall {
+  toolName: string;
+  toolLabel: string;
+  status: 'PROCESSING' | 'SUCCESS' | 'FAILED';
+  durationMs?: number | null;
+  inputSummary?: string | null;
+  outputSummary?: string | null;
+  errorMessage?: string | null;
+}
+
+export interface QaWorkflow {
+  traceId: string;
+  status: 'PROCESSING' | 'SUCCESS' | 'FAILED' | 'PARTIAL_SUCCESS' | 'INTERRUPTED' | 'NEED_CLARIFICATION';
+  currentStage: string;
+  archiveId?: number | null;
+  stages: QaWorkflowStage[];
+  toolCalls: QaToolCall[];
 }
 
 // 流式分片模型由前端实时消费，最终结果仍交由 SDK 归并为权威消息状态。
@@ -114,6 +145,9 @@ export interface MessageChunk {
   done: boolean;
   sequence: number;
   errorMessage?: string | null;
+  stage?: QaWorkflowStage | null;
+  toolCall?: QaToolCall | null;
+  workflow?: QaWorkflow | null;
 }
 
 export interface StreamStartResult {

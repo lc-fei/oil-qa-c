@@ -55,12 +55,15 @@ pub struct QaMessage {
     pub request_no: String,
     pub question: String,
     pub answer: String,
-    pub answer_summary: String,
     pub status: String,
+    pub partial_answer: Option<String>,
+    pub stream_sequence: Option<u32>,
+    pub interrupted_reason: Option<String>,
     pub created_at: String,
     pub finished_at: Option<String>,
     pub favorite: bool,
     pub feedback_type: Option<String>,
+    pub workflow: Option<QaWorkflow>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -106,6 +109,40 @@ pub struct EvidenceSummary {
     pub confidence: f64,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QaWorkflowStage {
+    pub stage_code: String,
+    pub stage_name: String,
+    pub status: String,
+    pub duration_ms: Option<i64>,
+    pub summary: Option<String>,
+    pub error_message: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QaToolCall {
+    pub tool_name: String,
+    pub tool_label: String,
+    pub status: String,
+    pub duration_ms: Option<i64>,
+    pub input_summary: Option<String>,
+    pub output_summary: Option<String>,
+    pub error_message: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QaWorkflow {
+    pub trace_id: String,
+    pub status: String,
+    pub current_stage: String,
+    pub archive_id: Option<u64>,
+    pub stages: Vec<QaWorkflowStage>,
+    pub tool_calls: Vec<QaToolCall>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SendQuestionResponse {
@@ -116,11 +153,11 @@ pub struct SendQuestionResponse {
     pub request_no: String,
     pub question: String,
     pub answer: String,
-    pub answer_summary: String,
     pub follow_ups: Vec<String>,
     pub status: String,
     pub timings: ChatTimings,
     pub evidence_summary: EvidenceSummary,
+    pub workflow: Option<QaWorkflow>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -165,6 +202,9 @@ pub struct MessageChunk {
     pub done: bool,
     pub sequence: u32,
     pub error_message: Option<String>,
+    pub stage: Option<QaWorkflowStage>,
+    pub tool_call: Option<QaToolCall>,
+    pub workflow: Option<QaWorkflow>,
 }
 
 /// 会话领域快照只描述当前选中会话、排序结果和空态，不包含 UI 细节。
@@ -419,13 +459,16 @@ fn create_message_from_chat_response(response: &SendQuestionResponse) -> QaMessa
         request_no: response.request_no.clone(),
         question: response.question.clone(),
         answer: response.answer.clone(),
-        answer_summary: response.answer_summary.clone(),
         status: response.status.clone(),
+        partial_answer: None,
+        stream_sequence: None,
+        interrupted_reason: None,
         // 发送问题接口按文档不返回消息时间与交互字段，这里由 SDK 统一补齐初始消息快照。
         created_at: js_sys::Date::new_0().to_iso_string().into(),
         finished_at: Some(js_sys::Date::new_0().to_iso_string().into()),
         favorite: false,
         feedback_type: None,
+        workflow: response.workflow.clone(),
     }
 }
 
@@ -450,12 +493,15 @@ fn create_processing_message(
             request_no,
             question: payload.question.clone(),
             answer: String::new(),
-            answer_summary: String::new(),
             status: "PROCESSING".to_string(),
+            partial_answer: Some(String::new()),
+            stream_sequence: Some(0),
+            interrupted_reason: None,
             created_at: now.to_iso_string().into(),
             finished_at: None,
             favorite: false,
             feedback_type: None,
+            workflow: None,
         },
     )
 }
@@ -1036,8 +1082,9 @@ fn complete_interrupted_stream(
         .find(|message| message.message_id == client_message_id)
     {
         message.answer = partial_answer;
-        message.answer_summary = message.answer.chars().take(120).collect();
+        message.partial_answer = Some(message.answer.clone());
         message.status = status.to_string();
+        message.interrupted_reason = Some(status.to_string());
         message.finished_at = Some(js_sys::Date::new_0().to_iso_string().into());
     }
 

@@ -8,6 +8,7 @@ interface ChatState {
   setMessages: (messages: QaMessage[]) => void;
   appendMessage: (message: QaMessage) => void;
   updateStreamingMessage: (messageId: number, answer: string) => void;
+  updateMessageWorkflow: (messageId: number, workflow: NonNullable<QaMessage['workflow']>) => void;
   updateMessageFavorite: (messageId: number, favorite: boolean) => void;
   setSending: (value: boolean) => void;
   setDomainState: (state: ChatDomainState) => void;
@@ -39,6 +40,19 @@ export const useChatStore = create<ChatState>((set) => ({
           ? {
               ...message,
               answer,
+            }
+          : message,
+      ),
+    }));
+  },
+  updateMessageWorkflow(messageId, workflow) {
+    // workflow 是后端新增的执行过程快照，流式过程中按消息维度局部覆盖。
+    set((state) => ({
+      messages: state.messages.map((message) =>
+        message.messageId === messageId
+          ? {
+              ...message,
+              workflow,
             }
           : message,
       ),

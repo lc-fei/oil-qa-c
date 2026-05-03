@@ -1,9 +1,10 @@
-import type { MessageChunk, SendQuestionPayload, SendQuestionResponse } from '@oil-qa-c/shared';
+import type { MessageChunk, QaWorkflow, SendQuestionPayload, SendQuestionResponse } from '@oil-qa-c/shared';
 import { getTokenStorage } from '@oil-qa-c/shared';
 import { getApiRuntimeBaseUrl } from '../client';
 
 export interface QaStreamHandlers {
   onStart?: (chunk: MessageChunk) => void;
+  onWorkflow?: (chunk: MessageChunk) => void;
   onChunk: (chunk: MessageChunk) => void;
   onFinal: (response: SendQuestionResponse) => void;
 }
@@ -31,12 +32,13 @@ interface QaStreamResultPayload {
   result?: {
     question: string;
     answer: string;
-    answerSummary: string;
     followUps: string[];
     status: SendQuestionResponse['status'];
     timings: SendQuestionResponse['timings'];
     evidenceSummary: SendQuestionResponse['evidenceSummary'];
+    workflow?: QaWorkflow | null;
   };
+  workflow?: QaWorkflow | null;
 }
 
 function buildUrl(path: string) {
@@ -89,11 +91,11 @@ function mapStreamResultToResponse(payload: QaStreamResultPayload): SendQuestion
     requestNo: payload.requestNo,
     question: payload.result.question,
     answer: payload.result.answer,
-    answerSummary: payload.result.answerSummary,
     followUps: payload.result.followUps,
     status: payload.result.status,
     timings: payload.result.timings,
     evidenceSummary: payload.result.evidenceSummary,
+    workflow: payload.result.workflow ?? payload.workflow ?? null,
   };
 }
 
@@ -118,6 +120,12 @@ function consumeSseBlock(block: string, handlers: QaStreamHandlers) {
 
   if (event.type === 'start') {
     handlers.onStart?.(event.data as MessageChunk);
+    return;
+  }
+
+  if (event.type === 'stage' || event.type === 'tool_call') {
+    // stage/tool_call 不追加回答正文，只推动流程 UI 的最新快照。
+    handlers.onWorkflow?.(event.data as MessageChunk);
     return;
   }
 

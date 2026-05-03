@@ -1,4 +1,4 @@
-import type { EvidenceDetail, SendQuestionPayload, SendQuestionResponse } from '@oil-qa-c/shared';
+import type { EvidenceDetail, MessageChunk, QaToolCall, QaWorkflow, QaWorkflowStage, SendQuestionPayload, SendQuestionResponse } from '@oil-qa-c/shared';
 import { cancelQaStreamMessage, startQaStream } from '@oil-qa-c/api';
 import { useChatStore, useEvidenceStore, useSessionStore } from '@oil-qa-c/store';
 import {
@@ -28,6 +28,70 @@ interface StreamQuestionOptions {
 }
 
 let activeStreamCancel: (() => void) | null = null;
+
+function upsertWorkflowStage(stages: QaWorkflowStage[], nextStage: QaWorkflowStage) {
+  const stageIndex = stages.findIndex((stage) => stage.stageCode === nextStage.stageCode);
+
+  if (stageIndex < 0) {
+    return [...stages, nextStage];
+  }
+
+  return stages.map((stage, index) => (index === stageIndex ? { ...stage, ...nextStage } : stage));
+}
+
+function upsertWorkflowToolCall(toolCalls: QaToolCall[], nextToolCall: QaToolCall) {
+  const toolIndex = toolCalls.findIndex((toolCall) => toolCall.toolName === nextToolCall.toolName);
+
+  if (toolIndex < 0) {
+    return [...toolCalls, nextToolCall];
+  }
+
+  return toolCalls.map((toolCall, index) => (index === toolIndex ? { ...toolCall, ...nextToolCall } : toolCall));
+}
+
+function buildWorkflowFromChunk(chunk: MessageChunk): QaWorkflow | null {
+  const workflow: QaWorkflow | null = chunk.workflow
+    ? {
+        ...chunk.workflow,
+        stages: [...chunk.workflow.stages],
+        toolCalls: [...chunk.workflow.toolCalls],
+      }
+    : chunk.stage
+      ? {
+          traceId: chunk.requestNo,
+          status: chunk.stage.status === 'FAILED' ? 'FAILED' : 'PROCESSING',
+          currentStage: chunk.stage.stageCode,
+          archiveId: null,
+          stages: [],
+          toolCalls: [],
+        }
+      : null;
+
+  if (!workflow) {
+    return null;
+  }
+
+  if (chunk.stage) {
+    // 后端 stage 事件可能只在顶层 stage 字段给出阶段状态，SDK 侧统一合并成 workflow 快照。
+    workflow.currentStage = chunk.stage.stageCode;
+    workflow.stages = upsertWorkflowStage(workflow.stages, chunk.stage);
+  }
+
+  if (chunk.toolCall) {
+    // 工具调用同样按名称归并，避免同一个工具 PROCESSING/SUCCESS 事件重复铺满 UI。
+    workflow.toolCalls = upsertWorkflowToolCall(workflow.toolCalls, chunk.toolCall);
+  }
+
+  return workflow;
+}
+
+function updateWorkflowFromChunk(clientMessageId: number, chunk: MessageChunk) {
+  const workflow = buildWorkflowFromChunk(chunk);
+
+  if (workflow) {
+    useChatStore.getState().updateMessageWorkflow(clientMessageId, workflow);
+  }
+}
 
 function applyChatResult(result: ChatSdkResult) {
   // SDK 返回的是完整会话快照，business 层只把快照拆分同步到对应 store。
@@ -68,6 +132,11 @@ export const qaChatService = {
       onStart(chunk) {
         serverMessageId = chunk.messageId;
         serverRequestNo = chunk.requestNo;
+        updateWorkflowFromChunk(started.stream.clientMessageId, chunk);
+      },
+      onWorkflow(chunk) {
+        // workflow 事件只更新执行过程展示，不改变回答正文和 SDK checkpoint。
+        updateWorkflowFromChunk(started.stream.clientMessageId, chunk);
       },
       onChunk(chunk) {
         serverMessageId = chunk.messageId;
@@ -75,6 +144,7 @@ export const qaChatService = {
         answerBuffer += chunk.delta;
         // 流式过程中的正文是客户端临时 UI 状态，完成后会被 SDK 最终快照覆盖。
         useChatStore.getState().updateStreamingMessage(started.stream.clientMessageId, answerBuffer);
+        updateWorkflowFromChunk(started.stream.clientMessageId, chunk);
         options.onAnswerChange?.(answerBuffer);
       },
       onFinal(response) {
@@ -136,7 +206,6 @@ export const qaChatService = {
         requestNo: started.stream.requestNo,
         question: payload.question,
         answer: answerBuffer,
-        answerSummary: answerBuffer.slice(0, 120),
         status: 'SUCCESS',
         followUps: [],
         timings: {

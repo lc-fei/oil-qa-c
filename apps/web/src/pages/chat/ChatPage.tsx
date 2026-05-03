@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService, favoriteService, qaChatService, qaSessionService, recommendationService } from '@oil-qa-c/business';
 import { copyToClipboard, type EvidenceDetail, type QaMessage, type QaSessionSummary, type RecommendationItem, routes } from '@oil-qa-c/shared';
@@ -88,6 +88,103 @@ function formatDurationLabel(durationMs: number) {
   }
 
   return `${(durationMs / 1000).toFixed(2)} s`;
+}
+
+function formatWorkflowStatus(status: string) {
+  const statusMap: Record<string, string> = {
+    PROCESSING: '处理中',
+    SUCCESS: '成功',
+    FAILED: '失败',
+    PARTIAL_SUCCESS: '部分成功',
+    INTERRUPTED: '已中断',
+    NEED_CLARIFICATION: '需澄清',
+  };
+
+  return statusMap[status] ?? status;
+}
+
+function formatStageAction(stageCode: string, stageName: string, status: string) {
+  const processingMap: Record<string, string> = {
+    QUESTION_UNDERSTANDING: '正在理解问题',
+    PLANNING: '正在规划回答路径',
+    RETRIEVAL: '正在检索知识图谱',
+    GENERATION: '正在生成答案',
+  };
+  const successMap: Record<string, string> = {
+    QUESTION_UNDERSTANDING: '问题理解完成',
+    PLANNING: '回答路径规划完成',
+    RETRIEVAL: '知识图谱检索完成',
+    GENERATION: '答案生成完成',
+  };
+
+  if (status === 'PROCESSING') {
+    return processingMap[stageCode] ?? `正在进行${stageName}`;
+  }
+
+  if (status === 'SUCCESS') {
+    return successMap[stageCode] ?? `${stageName}完成`;
+  }
+
+  if (status === 'FAILED') {
+    return `${stageName}失败`;
+  }
+
+  return `${stageName}：${formatWorkflowStatus(status)}`;
+}
+
+function getWorkflowHint(message: QaMessage) {
+  const workflow = message.workflow;
+
+  if (!workflow) {
+    return null;
+  }
+
+  const currentStage = workflow.stages.find((stage) => stage.stageCode === workflow.currentStage);
+  const latestStage = workflow.stages.at(-1);
+  const latestToolCall = workflow.toolCalls.at(-1);
+  const activeStage = currentStage ?? latestStage;
+
+  // 头部状态只表达“系统正在做什么”，避免把完整编排明细塞进回答气泡。
+  if (workflow.status === 'PROCESSING') {
+    if (message.answer.trim() && activeStage?.stageCode !== 'GENERATION') {
+      // 文本 chunk 已经返回时，用户感知上已经进入生成阶段；用于兼容后端阶段事件延迟。
+      return '正在生成答案';
+    }
+
+    if (activeStage) {
+      return formatStageAction(activeStage.stageCode, activeStage.stageName, activeStage.status);
+    }
+
+    if (latestToolCall?.status === 'PROCESSING') {
+      return `正在执行${latestToolCall.toolLabel}`;
+    }
+
+    return '正在组织回答';
+  }
+
+  if (workflow.status === 'SUCCESS') {
+    return null;
+  }
+
+  if (workflow.status === 'PARTIAL_SUCCESS') {
+    return '回答部分生成完成';
+  }
+
+  if (workflow.status === 'INTERRUPTED') {
+    return '回答已停止生成';
+  }
+
+  if (workflow.status === 'FAILED') {
+    return activeStage?.errorMessage ?? latestToolCall?.errorMessage ?? '回答生成失败';
+  }
+
+  return formatWorkflowStatus(workflow.status);
+}
+
+function isAnswerMetaVisible(message: QaMessage) {
+  // 操作区依赖最终 messageId 和依据归档，必须等 SDK 写入终态快照后再展示。
+  const finishedStatuses: QaMessage['status'][] = ['SUCCESS', 'PARTIAL_SUCCESS'];
+  return finishedStatuses.includes(message.status) && Boolean(message.answer.trim());
 }
 
 export function ChatPage() {
@@ -283,6 +380,8 @@ export function ChatPage() {
 
     setSending(true);
     setSessionErrorMessage('');
+    // 用户触发发送后立即清空输入区，避免等待流式响应期间误以为问题尚未提交。
+    setComposerValue('');
 
     try {
       // SSE 由客户端实时渲染，最终状态仍通过 SDK finish/fail/cancel 归并。
@@ -292,12 +391,21 @@ export function ChatPage() {
         contextMode: 'ON',
         answerMode: 'GRAPH_ENHANCED',
       });
-      setComposerValue('');
     } catch (error) {
       setSessionErrorMessage(error instanceof Error ? error.message : '问答发送失败');
     } finally {
       setSending(false);
     }
+  }
+
+  function handleComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key !== 'Enter' || event.shiftKey) {
+      return;
+    }
+
+    // Enter 作为发送快捷键，Shift+Enter 仍交给 textarea 处理换行。
+    event.preventDefault();
+    void handleSubmitQuestion();
   }
 
   function handleCancelQuestion() {
@@ -505,46 +613,55 @@ export function ChatPage() {
                     <div className="chat-bubble-avatar is-ai">AI</div>
                     <div className="chat-bubble">
                       <h3>系统回答</h3>
+                      {getWorkflowHint(message) ? (
+                        <div className="chat-workflow-strip">
+                          <span className="chat-workflow-dot" />
+                          <span>{getWorkflowHint(message)}</span>
+                        </div>
+                      ) : null}
                       {/* 主会话回答统一走富文本渲染组件，避免页面自己解析模型返回格式。 */}
                       <AnswerRenderer content={message.answer} className="chat-answer-renderer" />
-                      <div className="chat-chip-row">
-                        <span className="chat-chip">{message.answerSummary}</span>
-                        {message.favorite ? <span className="chat-chip">已收藏</span> : null}
-                      </div>
-                      <div className="chat-action-row">
-                        <button
-                          type="button"
-                          className="chat-inline-button"
-                          onClick={() => {
-                            void handleToggleFavorite(message);
-                          }}
-                          disabled={favoriteActionMessageId === message.messageId}
-                        >
-                          {favoriteActionMessageId === message.messageId
-                            ? '处理中...'
-                            : message.favorite || favoriteIdsByMessageId[message.messageId]
-                              ? '取消收藏'
-                              : '收藏回答'}
-                        </button>
-                        <button
-                          type="button"
-                          className="chat-inline-button"
-                          onClick={() => {
-                            handleToggleEvidence(message);
-                          }}
-                        >
-                          {currentEvidenceMessageId === message.messageId && evidenceOpen ? '收起依据' : '查看依据'}
-                        </button>
-                        <button
-                          type="button"
-                          className="chat-inline-button"
-                          onClick={() => {
-                            void copyToClipboard(message.answer);
-                          }}
-                        >
-                          复制回答
-                        </button>
-                      </div>
+                      {isAnswerMetaVisible(message) ? (
+                        <>
+                          <div className="chat-chip-row">
+                            {message.favorite ? <span className="chat-chip">已收藏</span> : null}
+                          </div>
+                          <div className="chat-action-row">
+                            <button
+                              type="button"
+                              className="chat-inline-button"
+                              onClick={() => {
+                                void handleToggleFavorite(message);
+                              }}
+                              disabled={favoriteActionMessageId === message.messageId}
+                            >
+                              {favoriteActionMessageId === message.messageId
+                                ? '处理中...'
+                                : message.favorite || favoriteIdsByMessageId[message.messageId]
+                                  ? '取消收藏'
+                                  : '收藏回答'}
+                            </button>
+                            <button
+                              type="button"
+                              className="chat-inline-button"
+                              onClick={() => {
+                                handleToggleEvidence(message);
+                              }}
+                            >
+                              {currentEvidenceMessageId === message.messageId && evidenceOpen ? '收起依据' : '查看依据'}
+                            </button>
+                            <button
+                              type="button"
+                              className="chat-inline-button"
+                              onClick={() => {
+                                void copyToClipboard(message.answer);
+                              }}
+                            >
+                              复制回答
+                            </button>
+                          </div>
+                        </>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -560,6 +677,7 @@ export function ChatPage() {
                 onChange={(event) => {
                   setComposerValue(event.target.value);
                 }}
+                onKeyDown={handleComposerKeyDown}
               />
               <div className="chat-composer-row">
                 <div className="chat-chip-row">
