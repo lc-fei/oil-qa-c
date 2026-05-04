@@ -103,18 +103,36 @@ function formatWorkflowStatus(status: string) {
   return statusMap[status] ?? status;
 }
 
+function isIgnoredWorkflowStage(stageCode: string) {
+  return stageCode === 'QUALITY_CHECK';
+}
+
 function formatStageAction(stageCode: string, stageName: string, status: string) {
   const processingMap: Record<string, string> = {
     QUESTION_UNDERSTANDING: '正在理解问题',
-    PLANNING: '正在规划回答路径',
-    RETRIEVAL: '正在检索知识图谱',
+    PLANNING: '正在进行任务规划',
+    RETRIEVAL: '正在进行知识检索',
+    EVIDENCE_RANKING: '正在进行证据排序',
+    EVIDENCE_SORTING: '正在进行证据排序',
+    RANKING: '正在进行证据排序',
     GENERATION: '正在生成答案',
+    ARCHIVING: '正在进行结果归档',
+    RESULT_ARCHIVING: '正在进行结果归档',
+    RESULT_ARCHIVE: '正在进行结果归档',
+    ARCHIVE: '正在进行结果归档',
   };
   const successMap: Record<string, string> = {
     QUESTION_UNDERSTANDING: '问题理解完成',
-    PLANNING: '回答路径规划完成',
-    RETRIEVAL: '知识图谱检索完成',
+    PLANNING: '任务规划完成',
+    RETRIEVAL: '知识检索完成',
+    EVIDENCE_RANKING: '证据排序完成',
+    EVIDENCE_SORTING: '证据排序完成',
+    RANKING: '证据排序完成',
     GENERATION: '答案生成完成',
+    ARCHIVING: '结果归档完成',
+    RESULT_ARCHIVING: '结果归档完成',
+    RESULT_ARCHIVE: '结果归档完成',
+    ARCHIVE: '结果归档完成',
   };
 
   if (status === 'PROCESSING') {
@@ -139,8 +157,9 @@ function getWorkflowHint(message: QaMessage) {
     return null;
   }
 
-  const currentStage = workflow.stages.find((stage) => stage.stageCode === workflow.currentStage);
-  const latestStage = workflow.stages.at(-1);
+  const visibleStages = workflow.stages.filter((stage) => !isIgnoredWorkflowStage(stage.stageCode));
+  const currentStage = visibleStages.find((stage) => stage.stageCode === workflow.currentStage);
+  const latestStage = visibleStages.at(-1);
   const latestToolCall = workflow.toolCalls.at(-1);
   const activeStage = currentStage ?? latestStage;
 
@@ -602,9 +621,9 @@ export function ChatPage() {
                     <div className="chat-bubble is-user">
                       <h3>用户问题</h3>
                       <div>{message.question}</div>
-                      <div className="chat-chip-row">
-                        <span className="chat-chip">问题类型：专业问答</span>
-                        <span className="chat-chip">上下文模式：开启</span>
+                      <div className="chat-chip-row is-compact">
+                        <span className="chat-chip">专业问答</span>
+                        <span className="chat-chip">上下文开启</span>
                       </div>
                     </div>
                   </div>
@@ -623,9 +642,11 @@ export function ChatPage() {
                       <AnswerRenderer content={message.answer} className="chat-answer-renderer" />
                       {isAnswerMetaVisible(message) ? (
                         <>
-                          <div className="chat-chip-row">
-                            {message.favorite ? <span className="chat-chip">已收藏</span> : null}
-                          </div>
+                          {message.favorite ? (
+                            <div className="chat-chip-row is-compact">
+                              <span className="chat-chip">已收藏</span>
+                            </div>
+                          ) : null}
                           <div className="chat-action-row">
                             <button
                               type="button"

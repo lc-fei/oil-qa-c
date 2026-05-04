@@ -29,7 +29,15 @@ interface StreamQuestionOptions {
 
 let activeStreamCancel: (() => void) | null = null;
 
+function isIgnoredWorkflowStage(stageCode: string) {
+  return stageCode === 'QUALITY_CHECK';
+}
+
 function upsertWorkflowStage(stages: QaWorkflowStage[], nextStage: QaWorkflowStage) {
+  if (isIgnoredWorkflowStage(nextStage.stageCode)) {
+    return stages.filter((stage) => !isIgnoredWorkflowStage(stage.stageCode));
+  }
+
   const stageIndex = stages.findIndex((stage) => stage.stageCode === nextStage.stageCode);
 
   if (stageIndex < 0) {
@@ -57,6 +65,7 @@ function buildWorkflowFromChunk(chunk: MessageChunk): QaWorkflow | null {
         toolCalls: [...chunk.workflow.toolCalls],
       }
     : chunk.stage
+      && !isIgnoredWorkflowStage(chunk.stage.stageCode)
       ? {
           traceId: chunk.requestNo,
           status: chunk.stage.status === 'FAILED' ? 'FAILED' : 'PROCESSING',
@@ -71,10 +80,12 @@ function buildWorkflowFromChunk(chunk: MessageChunk): QaWorkflow | null {
     return null;
   }
 
-  if (chunk.stage) {
+  if (chunk.stage && !isIgnoredWorkflowStage(chunk.stage.stageCode)) {
     // 后端 stage 事件可能只在顶层 stage 字段给出阶段状态，SDK 侧统一合并成 workflow 快照。
     workflow.currentStage = chunk.stage.stageCode;
     workflow.stages = upsertWorkflowStage(workflow.stages, chunk.stage);
+  } else {
+    workflow.stages = workflow.stages.filter((stage) => !isIgnoredWorkflowStage(stage.stageCode));
   }
 
   if (chunk.toolCall) {

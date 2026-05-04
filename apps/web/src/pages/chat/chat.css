@@ -356,18 +356,21 @@
 
 .chat-message-list {
   display: grid;
+  align-content: start;
   gap: 18px;
   padding: 20px 26px 28px;
 }
 
 .chat-message-block {
   display: grid;
+  align-content: start;
   gap: 14px;
 }
 
 .chat-message-row {
   display: grid;
   grid-template-columns: 48px minmax(0, 1fr);
+  align-items: flex-start;
   gap: 14px;
 }
 
@@ -394,7 +397,7 @@
   border-radius: 22px;
   background: #ffffff;
   color: #1f2937;
-  line-height: 1.8;
+  line-height: 1.7;
 }
 
 .chat-bubble.is-user {
@@ -410,6 +413,18 @@
 
 .chat-action-row {
   margin-top: 14px;
+}
+
+.chat-bubble .chat-chip-row {
+  margin-top: 12px;
+}
+
+.chat-bubble .chat-chip-row:empty {
+  display: none;
+}
+
+.chat-chip-row.is-compact {
+  gap: 8px;
 }
 
 .chat-workflow-strip {
