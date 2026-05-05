@@ -1,0 +1,24 @@
+<view class="page login-page">
+  <view class="brand">
+    <view class="brand-mark">OG</view>
+    <text class="title">油井工程智能问答</text>
+    <text class="subtitle">图谱增强问答 · 专业知识追溯</text>
+    <view class="capabilities">
+      <view class="capability">
+        <text class="capability-title">图谱增强问答</text>
+        <text class="capability-desc">结合实体、关系与专业知识依据生成回答。</text>
+      </view>
+      <view class="capability">
+        <text class="capability-title">专业知识追溯</text>
+        <text class="capability-desc">回答完成后可查看命中实体、关系链和依据摘要。</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="form">
+    <input class="input" placeholder="账号" value="{{account}}" bindinput="onAccountInput" confirm-type="next" />
+    <input class="input" placeholder="密码" password value="{{password}}" bindinput="onPasswordInput" confirm-type="done" bindconfirm="submit" />
+    <text wx:if="{{errorMessage}}" class="error-text">{{errorMessage}}</text>
+    <button class="primary-button" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">登录</button>
+  </view>
+</view>

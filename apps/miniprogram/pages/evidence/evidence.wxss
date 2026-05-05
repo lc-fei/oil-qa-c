@@ -1,0 +1,64 @@
+.evidence-page {
+  padding: 28rpx;
+  background: #f4f6f3;
+}
+
+.loading,
+.empty {
+  padding: 32rpx;
+  color: #637065;
+  text-align: center;
+}
+
+.summary,
+.card {
+  padding: 26rpx;
+  margin-bottom: 20rpx;
+  background: #ffffff;
+  border-radius: 8rpx;
+  border: 1rpx solid #dfe5df;
+}
+
+.summary {
+  background: #ffffff;
+}
+
+.summary-title,
+.section-title,
+.card-title {
+  display: block;
+  color: #17202a;
+  font-weight: 900;
+}
+
+.summary-title {
+  font-size: 32rpx;
+  margin-bottom: 16rpx;
+}
+
+.summary-line,
+.card-desc,
+.source-content {
+  display: block;
+  margin-top: 10rpx;
+  color: #637065;
+  font-size: 26rpx;
+  line-height: 1.6;
+}
+
+.section {
+  margin-top: 28rpx;
+}
+
+.section-title {
+  margin-bottom: 16rpx;
+  font-size: 30rpx;
+}
+
+.source-content {
+  color: #334035;
+}
+
+.section .card {
+  border-left: 6rpx solid #0f8a66;
+}

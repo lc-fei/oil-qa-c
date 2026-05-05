@@ -1,0 +1,20 @@
+<view wx:if="{{visible}}" class="mask" bindtap="close"></view>
+<view wx:if="{{visible}}" class="drawer">
+  <view class="drawer-head">
+    <text>历史会话</text>
+    <button class="mini-btn" bindtap="newSession">新建</button>
+  </view>
+  <scroll-view scroll-y="true" class="drawer-body">
+    <view wx:for="{{groups}}" wx:key="label" class="group">
+      <text class="group-title">{{item.label}}</text>
+      <view wx:for="{{item.items}}" wx:key="sessionId" class="session-item {{currentSessionId === item.sessionId ? 'active' : ''}}" bindtap="selectSession" data-session-id="{{item.sessionId}}">
+        <view class="session-title-row">
+          <text class="session-title">{{item.title}}</text>
+          <button class="icon-btn" catchtap="renameSession" data-session-id="{{item.sessionId}}" data-title="{{item.title}}">改</button>
+          <button class="icon-btn" catchtap="deleteSession" data-session-id="{{item.sessionId}}">删</button>
+        </view>
+        <text class="session-meta">{{item.messageCount}} 条消息 · {{item.updatedAt}}</text>
+      </view>
+    </view>
+  </scroll-view>
+</view>

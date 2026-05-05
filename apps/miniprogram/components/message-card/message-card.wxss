@@ -1,0 +1,85 @@
+.message-card {
+  padding: 26rpx;
+  margin-bottom: 24rpx;
+  background: #ffffff;
+  border-radius: 8rpx;
+  border: 1rpx solid #dfe5df;
+}
+
+.message-card.user {
+  background: #edf5ff;
+  border-color: #c9ddf4;
+}
+
+.meta {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12rpx;
+  color: #637065;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.body {
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #17202a;
+  font-size: 28rpx;
+}
+
+.follow-ups {
+  margin-top: 18rpx;
+}
+
+.follow-title {
+  display: block;
+  margin-bottom: 12rpx;
+  color: #334035;
+  font-size: 24rpx;
+  font-weight: 800;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.tag {
+  padding: 0 18rpx;
+  height: 56rpx;
+  line-height: 56rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid #dfe5df;
+  background: #f8faf7;
+  color: #637065;
+  font-size: 24rpx;
+  font-weight: 700;
+  margin-right: 12rpx;
+  margin-bottom: 12rpx;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 18rpx;
+}
+
+.mini-btn {
+  padding: 0 18rpx;
+  height: 56rpx;
+  line-height: 56rpx;
+  font-size: 24rpx;
+  background: #f8faf7;
+  border: 1rpx solid #dfe5df;
+  color: #334035;
+  font-weight: 700;
+  margin-right: 12rpx;
+  margin-bottom: 12rpx;
+}
+
+.actions .mini-btn:first-child {
+  background: #e7f4ee;
+  border-color: #b7decf;
+  color: #0f8a66;
+}

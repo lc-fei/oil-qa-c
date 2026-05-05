@@ -1,0 +1,150 @@
+.favorites-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 28rpx;
+  background: #f4f6f3;
+}
+
+.favorites-head {
+  margin-bottom: 22rpx;
+}
+
+.favorites-title {
+  display: block;
+  color: #17202a;
+  font-size: 40rpx;
+  font-weight: 900;
+}
+
+.favorites-subtitle {
+  display: block;
+  margin-top: 8rpx;
+  color: #637065;
+  font-size: 24rpx;
+  line-height: 1.6;
+}
+
+.search-row {
+  display: flex;
+  margin-bottom: 18rpx;
+}
+
+.search-input {
+  flex: 1;
+  height: 72rpx;
+  padding: 0 20rpx;
+  border: 1rpx solid #cfd8d0;
+  border-radius: 8rpx;
+  background: #ffffff;
+  margin-right: 16rpx;
+}
+
+.search-btn {
+  width: 112rpx;
+  height: 72rpx;
+  line-height: 72rpx;
+  background: #0f8a66;
+  color: #ffffff;
+  font-size: 26rpx;
+  font-weight: 800;
+}
+
+.filter-row {
+  display: flex;
+  margin-bottom: 20rpx;
+  overflow: auto;
+}
+
+.filter {
+  flex: 0 0 auto;
+  padding: 12rpx 20rpx;
+  border: 1rpx solid #dfe5df;
+  border-radius: 999rpx;
+  background: #ffffff;
+  color: #637065;
+  font-size: 24rpx;
+  font-weight: 700;
+  margin-right: 12rpx;
+}
+
+.filter.active {
+  background: #e7f4ee;
+  border-color: #b7decf;
+  color: #0f8a66;
+}
+
+.favorite-scroll {
+  flex: 1;
+  height: 0;
+}
+
+.favorite-card {
+  margin-bottom: 20rpx;
+  padding: 26rpx;
+  background: #ffffff;
+  border-radius: 8rpx;
+  border: 1rpx solid #dfe5df;
+}
+
+.favorite-title {
+  display: block;
+  color: #17202a;
+  font-size: 30rpx;
+  font-weight: 900;
+}
+
+.favorite-meta,
+.question,
+.answer,
+.loading,
+.empty {
+  display: block;
+  margin-top: 12rpx;
+  color: #637065;
+  font-size: 26rpx;
+  line-height: 1.6;
+}
+
+.favorite-detail {
+  margin-top: 20rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx solid #edf0ed;
+}
+
+.question {
+  color: #0f8a66;
+  font-weight: 800;
+}
+
+.answer {
+  color: #334035;
+  white-space: pre-wrap;
+}
+
+.actions {
+  display: flex;
+  margin-top: 20rpx;
+}
+
+.mini-btn {
+  flex: 1;
+  height: 64rpx;
+  line-height: 64rpx;
+  background: #f8faf7;
+  border: 1rpx solid #dfe5df;
+  color: #334035;
+  font-size: 24rpx;
+  font-weight: 700;
+  margin-right: 16rpx;
+}
+
+.mini-btn.danger {
+  color: #dc2626;
+}
+
+.loading,
+.empty {
+  padding: 32rpx;
+  text-align: center;
+}

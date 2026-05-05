@@ -1,0 +1,11 @@
+{
+  "name": "@oil-qa-c/miniprogram",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "lint": "node ./scripts/check-files.mjs",
+    "typecheck": "node ./scripts/check-files.mjs",
+    "build": "node ./scripts/check-files.mjs"
+  },
+  "devDependencies": {}
+}

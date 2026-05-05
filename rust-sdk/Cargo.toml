@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "bindings/mobile",
   "bindings/wasm",
   "crates/core",
   "crates/auth",

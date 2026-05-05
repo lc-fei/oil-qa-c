@@ -1,0 +1,36 @@
+<view class="page favorites-page">
+  <view class="favorites-head">
+    <text class="favorites-title">我的收藏</text>
+    <text class="favorites-subtitle">集中查看已收藏回答，支持回到原会话继续追问。</text>
+  </view>
+  <view class="search-row">
+    <input class="search-input" placeholder="搜索收藏" value="{{keyword}}" bindinput="onKeywordInput" confirm-type="search" bindconfirm="search" />
+    <button class="search-btn" bindtap="search">搜索</button>
+  </view>
+  <view class="filter-row">
+    <text class="filter active">全部</text>
+    <text class="filter">回答</text>
+    <text class="filter">最近</text>
+    <text class="filter">含依据</text>
+  </view>
+
+  <scroll-view scroll-y="true" class="favorite-scroll" bindscrolltolower="loadMore">
+    <view wx:if="{{!favorites.length && !loading}}" class="empty">暂无收藏</view>
+    <view wx:for="{{favorites}}" wx:key="favoriteId" class="favorite-card">
+      <view class="favorite-head" bindtap="toggleDetail" data-favorite-id="{{item.favoriteId}}">
+        <text class="favorite-title">{{item.title}}</text>
+        <text class="favorite-meta">{{item.createdAt}}</text>
+      </view>
+      <view wx:if="{{expandedId === item.favoriteId}}" class="favorite-detail">
+        <text class="question">{{details[item.favoriteId].question}}</text>
+        <text class="answer" selectable="{{true}}">{{details[item.favoriteId].answer}}</text>
+        <view class="actions">
+          <button class="mini-btn" bindtap="goSession" data-session-id="{{item.sessionId}}" data-message-id="{{item.messageId}}">回到会话</button>
+          <button class="mini-btn danger" bindtap="removeFavorite" data-favorite-id="{{item.favoriteId}}">取消收藏</button>
+        </view>
+      </view>
+    </view>
+    <view wx:if="{{loading}}" class="loading">加载中...</view>
+    <view wx:if="{{finished && favorites.length}}" class="loading">没有更多了</view>
+  </scroll-view>
+</view>

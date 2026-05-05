@@ -1,0 +1,21 @@
+<view class="message-card {{message.role === 'user' ? 'user' : 'assistant'}}">
+  <view class="meta">
+    <text class="role">{{message.role === 'user' ? '我' : '系统'}}</text>
+    <text class="status">{{statusText}}</text>
+  </view>
+  <view class="body">
+    <text selectable="{{true}}">{{displayAnswer}}</text>
+  </view>
+  <view wx:if="{{message.followUps && message.followUps.length}}" class="follow-ups">
+    <text class="follow-title">推荐追问</text>
+    <view class="tags">
+      <button wx:for="{{message.followUps}}" wx:key="*this" class="tag" bindtap="onFollowUpTap" data-question="{{item}}">{{item}}</button>
+    </view>
+  </view>
+  <view wx:if="{{showActions}}" class="actions">
+    <button class="mini-btn" bindtap="onEvidenceTap">依据</button>
+    <button class="mini-btn" bindtap="onFavoriteTap">{{message.favorite ? '取消收藏' : '收藏'}}</button>
+    <button class="mini-btn" bindtap="onLikeTap">赞</button>
+    <button class="mini-btn" bindtap="onDislikeTap">踩</button>
+  </view>
+</view>

@@ -6,6 +6,12 @@
   "scripts": {
     "dev": "turbo run dev --filter=@oil-qa-c/web",
     "dev:web": "pnpm --filter @oil-qa-c/web dev",
+    "dev:mobile": "pnpm --filter @oil-qa-c/mobile start",
+    "build:miniprogram": "pnpm --filter @oil-qa-c/miniprogram build",
+    "build:mobile:android-rust": "bash ./scripts/build-mobile-android.sh",
+    "build:mobile:ios-rust": "bash ./scripts/build-mobile-ios.sh",
+    "check:miniprogram": "pnpm --filter @oil-qa-c/miniprogram typecheck",
+    "check:mobile": "pnpm --filter @oil-qa-c/mobile typecheck",
     "build": "turbo run build",
     "build:wasm": "bash ./scripts/build-wasm.sh",
     "typecheck": "turbo run typecheck",

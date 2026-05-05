@@ -1,0 +1,59 @@
+<view class="page chat-page">
+  <view class="topbar">
+    <button class="top-btn" bindtap="openSessions">历史</button>
+    <view class="title-block">
+      <text class="page-title">{{currentTitle}}</text>
+      <text class="page-subtitle">{{isSending ? '正在生成回答' : '图谱增强问答'}}</text>
+    </view>
+    <button class="top-btn" bindtap="toggleUserMenu">{{userLabel}}</button>
+  </view>
+
+  <view wx:if="{{userMenuVisible}}" class="user-menu">
+    <button bindtap="goFavorites">我的收藏</button>
+    <button bindtap="logout">退出登录</button>
+  </view>
+
+  <scroll-view class="message-scroll" scroll-y="true" scroll-into-view="{{scrollTarget}}">
+    <view wx:if="{{!messages.length}}" class="empty-state">
+      <text class="empty-title">开始一次油井工程问答</text>
+      <text class="empty-desc">可以询问井壁失稳、井漏处理、钻井液参数、卡钻机理等问题。</text>
+      <view class="recommendations">
+        <button wx:for="{{recommendations}}" wx:key="id" class="recommendation" data-question="{{item.questionText}}" bindtap="useRecommendation">{{item.questionText}}</button>
+      </view>
+    </view>
+
+    <view wx:for="{{displayMessages}}" wx:key="displayId" id="msg-{{item.displayId}}">
+      <message-card
+        message="{{item}}"
+        bind:followup="sendFollowUp"
+        bind:evidence="openEvidence"
+        bind:favorite="toggleFavorite"
+        bind:feedback="submitFeedback"
+      />
+    </view>
+  </scroll-view>
+
+  <view class="composer safe-bottom">
+    <view class="mode-row">
+      <button class="mode {{contextMode === 'ON' ? 'active' : ''}}" data-mode="ON" bindtap="setContextMode">上下文</button>
+      <button class="mode {{answerMode === 'GRAPH_ENHANCED' ? 'active' : ''}}" data-mode="GRAPH_ENHANCED" bindtap="setAnswerMode">图谱增强</button>
+      <button class="mode {{answerMode === 'LLM_ONLY' ? 'active' : ''}}" data-mode="LLM_ONLY" bindtap="setAnswerMode">仅模型</button>
+    </view>
+    <view class="input-row">
+      <textarea class="question-input" auto-height maxlength="1000" placeholder="输入你的问题" value="{{question}}" bindinput="onQuestionInput" confirm-type="send" />
+      <button wx:if="{{!isSending}}" class="send-btn" bindtap="sendQuestion">发送</button>
+      <button wx:else class="stop-btn" bindtap="cancelGenerating">停止</button>
+    </view>
+  </view>
+
+  <session-drawer
+    visible="{{sessionDrawerVisible}}"
+    groups="{{sessionGroups}}"
+    current-session-id="{{currentSessionId}}"
+    bind:close="closeSessions"
+    bind:newsession="newSession"
+    bind:select="selectSession"
+    bind:rename="renameSession"
+    bind:delete="deleteSession"
+  />
+</view>

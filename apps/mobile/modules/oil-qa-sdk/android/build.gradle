@@ -1,0 +1,20 @@
+plugins {
+    id 'com.android.library'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.oilqac.sdk'
+    compileSdk rootProject.ext.compileSdkVersion
+
+    defaultConfig {
+        minSdk rootProject.ext.minSdkVersion
+    }
+
+    sourceSets {
+        main {
+            // Rust Android 构建脚本产出的 liboil_qa_mobile.so 放入 jniLibs 后由系统加载。
+            jniLibs.srcDirs = ['src/main/jniLibs']
+        }
+    }
+}

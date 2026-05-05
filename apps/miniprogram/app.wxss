@@ -1,0 +1,61 @@
+page {
+  min-height: 100vh;
+  background: #f4f6f3;
+  color: #17202a;
+  font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+  font-size: 28rpx;
+}
+
+view,
+text,
+input,
+textarea,
+button {
+  box-sizing: border-box;
+}
+
+button {
+  margin: 0;
+  border-radius: 8rpx;
+}
+
+button::after {
+  border: 0;
+}
+
+.page {
+  min-height: 100vh;
+  background: #f4f6f3;
+}
+
+.safe-bottom {
+  padding-bottom: 28rpx;
+}
+
+.primary-button {
+  height: 88rpx;
+  border-radius: 8rpx;
+  background: #0f8a66;
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 800;
+  line-height: 88rpx;
+}
+
+.ghost-button {
+  height: 72rpx;
+  border: 1rpx solid #dfe5df;
+  border-radius: 8rpx;
+  background: #f8faf7;
+  color: #334035;
+  font-size: 26rpx;
+  line-height: 70rpx;
+}
+
+.muted-text {
+  color: #637065;
+}
+
+.error-text {
+  color: #dc2626;
+}

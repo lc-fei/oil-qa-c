@@ -1,0 +1,97 @@
+.login-page {
+  padding: 72rpx 36rpx 48rpx;
+  background: #f4f6f3;
+}
+
+.brand {
+  margin-bottom: 44rpx;
+}
+
+.brand-mark {
+  width: 108rpx;
+  height: 108rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8rpx;
+  background: #0f8a66;
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 900;
+}
+
+.title {
+  display: block;
+  margin-top: 34rpx;
+  color: #17202a;
+  font-size: 56rpx;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.subtitle {
+  display: block;
+  margin-top: 20rpx;
+  color: #637065;
+  font-size: 26rpx;
+  line-height: 1.7;
+}
+
+.capabilities {
+  margin-top: 40rpx;
+}
+
+.capability {
+  padding: 26rpx 28rpx;
+  margin-top: 20rpx;
+  border: 1rpx solid #dfe5df;
+  border-radius: 8rpx;
+  background: #ffffff;
+}
+
+.capability:first-child {
+  margin-top: 0;
+}
+
+.capability-title {
+  display: block;
+  margin-bottom: 8rpx;
+  color: #17202a;
+  font-size: 26rpx;
+  font-weight: 800;
+}
+
+.capability-desc {
+  display: block;
+  color: #637065;
+  font-size: 24rpx;
+  line-height: 1.55;
+}
+
+.form {
+  padding: 36rpx;
+  background: #ffffff;
+  border-radius: 8rpx;
+  border: 1rpx solid #dfe5df;
+}
+
+.input {
+  height: 96rpx;
+  padding: 0 28rpx;
+  margin-bottom: 28rpx;
+  border: 1rpx solid #cfd8d0;
+  border-radius: 8rpx;
+  background: #ffffff;
+  font-size: 28rpx;
+}
+
+.error-text {
+  display: block;
+  margin: -6rpx 0 24rpx;
+  padding: 20rpx 24rpx;
+  border: 1rpx solid #f2b8b5;
+  border-radius: 8rpx;
+  background: #fff4f2;
+  font-size: 24rpx;
+  line-height: 1.5;
+}

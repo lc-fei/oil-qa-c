@@ -1,0 +1,46 @@
+<view class="page evidence-page">
+  <view wx:if="{{loading}}" class="loading">正在加载依据...</view>
+  <view wx:elif="{{errorMessage}}" class="error-text">{{errorMessage}}</view>
+  <view wx:else>
+    <view class="summary">
+      <text class="summary-title">图谱命中摘要</text>
+      <text class="summary-line">置信度：{{confidenceText}}</text>
+      <text class="summary-line">实体 {{entities.length}} 个 · 关系 {{relations.length}} 条 · 依据 {{sources.length}} 条</text>
+    </view>
+
+    <view class="section">
+      <text class="section-title">命中实体</text>
+      <view wx:if="{{!entities.length}}" class="empty">暂无实体</view>
+      <view wx:for="{{entities}}" wx:key="entityId" class="card">
+        <text class="card-title">{{item.entityName}}</text>
+        <text class="card-desc">{{item.entityType}}</text>
+      </view>
+    </view>
+
+    <view class="section">
+      <text class="section-title">关系路径</text>
+      <view wx:if="{{!relations.length}}" class="empty">暂无关系</view>
+      <view wx:for="{{relations}}" wx:key="index" class="card">
+        <text class="card-title">{{item.sourceName}} → {{item.targetName}}</text>
+        <text class="card-desc">{{item.relationType}}</text>
+      </view>
+    </view>
+
+    <view class="section">
+      <text class="section-title">回答依据</text>
+      <view wx:if="{{!sources.length}}" class="empty">暂无依据</view>
+      <view wx:for="{{sources}}" wx:key="index" class="card">
+        <text class="card-title">{{item.title}}</text>
+        <text class="card-desc">{{item.sourceType}}</text>
+        <text class="source-content" selectable="{{true}}">{{item.content}}</text>
+      </view>
+    </view>
+
+    <view class="section">
+      <text class="section-title">耗时</text>
+      <view class="card">
+        <text class="card-desc">{{timingsText}}</text>
+      </view>
+    </view>
+  </view>
+</view>

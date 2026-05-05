@@ -1,0 +1,20 @@
+{
+  "name": "@oil-qa-c/oil-qa-sdk",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "react-native": "src/index.ts",
+  "codegenConfig": {
+    "name": "OilQaSdkSpec",
+    "type": "modules",
+    "jsSrcsDir": "src",
+    "android": {
+      "javaPackageName": "com.oilqac.sdk"
+    }
+  },
+  "files": [
+    "src",
+    "ios",
+    "OilQaSdk.podspec"
+  ]
+}

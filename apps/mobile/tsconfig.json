@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "baseUrl": "../..",
+    "types": ["react", "react-native"],
+    "paths": {
+      "@oil-qa-c/shared": ["packages/shared/src"],
+      "react": ["apps/mobile/node_modules/@types/react"],
+      "react/jsx-runtime": ["apps/mobile/node_modules/@types/react/jsx-runtime"]
+    }
+  },
+  "include": ["index.ts", "App.tsx", "src"]
+}

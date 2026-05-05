@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "智能问答",
+  "usingComponents": {
+    "message-card": "../../components/message-card/message-card",
+    "session-drawer": "../../components/session-drawer/session-drawer"
+  }
+}
